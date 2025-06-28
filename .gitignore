@@ -1,0 +1,163 @@
+# QuickFinder Chrome Extension - Git Ignore File
+
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Chrome Extension specific
+*.crx
+*.pem
+key.pem
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Logs
+logs/
+*.log
+
+# Build artifacts
+dist/
+build/
+out/
+
+# Package files
+*.zip
+*.tar.gz
+*.rar
+
+# API Keys and sensitive data (should never be committed)
+config/secrets.js
+secrets.json
+api-keys.txt
+*.key
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# Debug and test files
+debug-*.js
+test-*.js
+fix-*.js
+quick-*.js
+*-test.js
+*-debug.js
+*-fix.js
+
+# Temporary documentation files
+*-GUIDE.md
+*-FIXES.md
+*-UPDATE*.md
+*-IMPLEMENTATION.md
+QUICK_*.md
+LATEST_*.md
+FINAL_*.md
+PROJECT_*.md
+SETTINGS_*.md
+BOOKMARK_*.md
+BUTTON_*.md
+CHROME_*.md
+CUSTOM_*.md
+DEDUPLICATION_*.md
+DEEPSEEK_*.md
+DRAG_*.md
+FOLDER_*.md
+MOUSE_*.md
+NEW_TAB_*.md
+POPUP_*.md
+SHORTCUT_*.md
+Step-by-Step-*.md
+
+# Icon generation files
+create-icons.html
+generate-*.js
+icons/icon[0-9].png
+icons/icon[0-9][0-9].png
+icons/*生成*.png
+icons/temp-*.png
+
+# Documentation drafts
+*-draft.md
+*-temp.md
+
+# Backup files
+*.bak
+*.backup

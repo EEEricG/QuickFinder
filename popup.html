@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickFinder</title>
+  <style>
+    body {
+      width: 300px;
+      padding: 20px;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .logo {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 12px auto;
+      display: block;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .title {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0;
+    }
+    
+    .subtitle {
+      font-size: 12px;
+      opacity: 0.8;
+      margin: 4px 0 0 0;
+    }
+    
+    .shortcut {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 16px;
+      margin: 16px 0;
+      text-align: center;
+    }
+    
+    .shortcut-label {
+      font-size: 14px;
+      margin-bottom: 8px;
+      opacity: 0.9;
+    }
+    
+    .shortcut-keys {
+      font-size: 16px;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.3);
+      padding: 8px 12px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+    
+    .features {
+      margin-top: 16px;
+    }
+    
+    .feature {
+      display: flex;
+      align-items: center;
+      margin: 8px 0;
+      font-size: 13px;
+    }
+    
+    .feature-icon {
+      margin-right: 8px;
+      font-size: 14px;
+    }
+    
+    .language-toggle {
+      text-align: center;
+      margin: 15px 0 10px 0;
+    }
+
+    .language-toggle button {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.2s ease;
+    }
+
+    .language-toggle button:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .bookmark-manager-link {
+      margin: 16px 0;
+      text-align: center;
+    }
+
+    .manager-btn {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      width: 100%;
+      max-width: 200px;
+    }
+
+    .manager-btn:hover {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.2));
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .manager-btn:active {
+      transform: translateY(0);
+    }
+
+    .ai-settings-btn {
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.3));
+      border: 1px solid rgba(102, 126, 234, 0.4);
+    }
+
+    .ai-settings-btn:hover {
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.4), rgba(118, 75, 162, 0.4));
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 11px;
+      opacity: 0.7;
+    }
+
+    /* 搜索功能样式 */
+    .search-section {
+      width: 100%;
+    }
+
+    .search-container {
+      margin-bottom: 12px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 15px;
+      border: none;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1.5px solid rgba(255, 255, 255, 0.2);
+      box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.12),
+        0 2px 8px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      outline: none;
+      transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      box-sizing: border-box;
+      color: #333;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+    }
+
+    .search-input:focus {
+      background: rgba(255, 255, 255, 0.18);
+      backdrop-filter: blur(25px) saturate(200%);
+      -webkit-backdrop-filter: blur(25px) saturate(200%);
+      border: 1.5px solid rgba(102, 126, 234, 0.4);
+      box-shadow:
+        0 12px 40px rgba(102, 126, 234, 0.15),
+        0 4px 16px rgba(102, 126, 234, 0.1),
+        0 0 0 3px rgba(102, 126, 234, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+      transform: translateY(-2px) scale(1.01);
+    }
+
+    .search-input::placeholder {
+      color: rgba(255, 255, 255, 0.75);
+      opacity: 0.9;
+      font-weight: 400;
+    }
+
+    /* 特殊页面搜索模式样式 - 白色文字 */
+    .search-section .search-input {
+      color: white !important;
+    }
+
+    .search-section .search-input::placeholder {
+      color: rgba(255, 255, 255, 0.8) !important;
+    }
+
+    .search-results {
+      max-height: 300px;
+      overflow-y: auto;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .search-placeholder {
+      text-align: center;
+      padding: 20px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .placeholder-icon {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    .placeholder-text {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    .search-result-item {
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+      transition: background 0.2s ease;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-result-item:hover,
+    .search-result-item.selected {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .search-result-item:last-child {
+      border-bottom: none;
+    }
+
+    .result-favicon {
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      border-radius: 2px;
+    }
+
+    .result-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .result-title {
+      font-size: 12px;
+      font-weight: 500;
+      color: white;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .result-url-container {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .result-url {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.7);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Popup Category Tags */
+    .popup-category-tags {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .popup-category-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-size: 9px;
+      font-weight: 500;
+      line-height: 1.2;
+      white-space: nowrap;
+      border: 1px solid transparent;
+    }
+
+    .popup-category-tag-bookmark {
+      background: rgba(255, 215, 0, 0.2);
+      color: #fbbf24;
+      border-color: rgba(255, 215, 0, 0.4);
+    }
+
+    .popup-category-tag-frequent {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+      border-color: rgba(59, 130, 246, 0.4);
+    }
+
+    .popup-category-tag-recent {
+      background: rgba(34, 197, 94, 0.2);
+      color: #4ade80;
+      border-color: rgba(34, 197, 94, 0.4);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="icons/icon.png" alt="QuickFinder" class="logo">
+    <p class="subtitle" data-en="Bookmark & History Search" data-zh="书签和历史记录搜索">书签和历史记录搜索</p>
+  </div>
+
+  <!-- 搜索功能区域 -->
+  <div class="search-section" id="search-section" style="display: none;">
+    <div class="search-container">
+      <input
+        type="text"
+        class="search-input"
+        placeholder="搜索书签和历史记录..."
+        id="popup-search-input"
+        autofocus
+      />
+    </div>
+    <div class="search-results" id="popup-search-results">
+      <div class="search-placeholder">
+        <div class="placeholder-icon">🔍</div>
+        <div class="placeholder-text">输入内容开始搜索...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 介绍页面区域 -->
+  <div class="intro-section" id="intro-section">
+    <div class="shortcut">
+      <div class="shortcut-label" data-en="Press to search:" data-zh="按键搜索：">按键搜索：</div>
+      <div class="shortcut-keys" id="shortcut-display">Ctrl+Q</div>
+    </div>
+  </div>
+
+    <div class="bookmark-manager-link">
+      <button class="manager-btn" id="open-manager-btn" data-en="Open Bookmark Manager" data-zh="打开书签管理器">打开书签管理器</button>
+    </div>
+    <!--
+    <div class="bookmark-manager-link">
+      <button class="manager-btn ai-settings-btn" id="ai-settings-btn" data-en="🤖 AI Settings" data-zh="🤖 AI设置">🤖 AI设置</button>
+    </div>
+    -->
+    <div class="features">
+      <div class="feature">
+        <span class="feature-icon">⚡</span>
+        <span data-en="Instant search across bookmarks & history" data-zh="即时搜索书签和历史记录">即时搜索书签和历史记录</span>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">🎯</span>
+        <span data-en="Fuzzy matching for quick results" data-zh="模糊匹配快速找到结果">模糊匹配快速找到结果</span>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">📚</span>
+        <span data-en="Advanced bookmark management with drag & drop" data-zh="高级书签管理，支持拖拽排序">高级书签管理，支持拖拽排序</span>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">📁</span>
+        <span data-en="Multi-select operations & folder organization" data-zh="多选操作和文件夹整理">多选操作和文件夹整理</span>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">🔄</span>
+        <span data-en="Import/Export bookmarks with full structure" data-zh="导入导出书签，保持完整结构">导入导出书签，保持完整结构</span>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">🤖</span>
+        <span data-en="AI-powered features coming soon..." data-zh="AI功能开发中">AI功能开发中</span>
+      </div>
+      <!--
+      <div class="feature">
+        <span class="feature-icon">🤖</span>
+        <span data-en="AI-powered smart search & organization" data-zh="AI智能搜索和自动整理">AI智能搜索和自动整理</span>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">🎯</span>
+        <span data-en="Personalized recommendations" data-zh="个性化推荐">个性化推荐</span>
+      </div>
+      -->
+
+    </div>
+    <!--
+    <div class="language-toggle">
+      <button id="lang-toggle">English</button>
+    </div>
+    -->
+    <div class="footer">
+      <span data-en="Version 1.0.0" data-zh="版本 1.0.0">版本 1.0.0</span>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

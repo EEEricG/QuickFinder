@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实际书签结构测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            backdrop-filter: blur(10px);
+        }
+
+        .test-button {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.3);
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+        }
+
+        .result.success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 2px solid rgba(34, 197, 94, 0.6);
+        }
+
+        .result.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid rgba(239, 68, 68, 0.6);
+        }
+
+        .result.info {
+            background: rgba(59, 130, 246, 0.2);
+            border: 2px solid rgba(59, 130, 246, 0.6);
+        }
+
+        .file-input {
+            margin: 10px 0;
+            padding: 10px;
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 实际书签结构测试</h1>
+        <p>基于你的实际书签文件进行路径提取测试和修复</p>
+    </div>
+
+    <div class="test-section">
+        <h3>📁 实际文件结构分析</h3>
+        <div class="file-input">
+            <input type="file" id="bookmark-file" accept=".html" onchange="analyzeActualStructure(event)">
+            <p>选择你的 bookmarks_2025-06-28 (1).html 文件</p>
+        </div>
+        <button class="test-button" onclick="testKnownStructure()">测试已知结构</button>
+        <div id="structure-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🎯 路径提取测试</h3>
+        <button class="test-button" onclick="testPathExtraction()">测试路径提取</button>
+        <div id="path-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🔧 修复验证</h3>
+        <button class="test-button" onclick="validateFix()">验证修复效果</button>
+        <div id="fix-result" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        let globalDoc = null;
+
+        // 分析实际结构
+        async function analyzeActualStructure(event) {
+            const resultDiv = document.getElementById('structure-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '🔄 分析实际书签结构...';
+            resultDiv.className = 'result info';
+
+            try {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const content = await readFileContent(file);
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(content, 'text/html');
+                globalDoc = doc;
+
+                let analysis = `实际书签结构分析\n`;
+                analysis += `==================\n\n`;
+
+                // 分析文件夹结构
+                const folders = doc.querySelectorAll('h3');
+                analysis += `发现的文件夹:\n`;
+                folders.forEach((folder, index) => {
+                    const folderName = folder.textContent.trim();
+                    analysis += `${index + 1}. "${folderName}"\n`;
+                });
+
+                analysis += `\n特定文件夹分析:\n`;
+                
+                // 分析 work 文件夹
+                const workFolder = Array.from(folders).find(h3 => h3.textContent.trim() === 'work');
+                if (workFolder) {
+                    analysis += `\n📁 work 文件夹分析:\n`;
+                    const workDT = workFolder.closest('dt');
+                    const workDL = workDT.nextElementSibling;
+                    if (workDL && workDL.tagName.toLowerCase() === 'dl') {
+                        const workLinks = workDL.querySelectorAll('a[href]');
+                        analysis += `  - 包含 ${workLinks.length} 个书签\n`;
+                        analysis += `  - 前3个书签:\n`;
+                        Array.from(workLinks).slice(0, 3).forEach((link, i) => {
+                            analysis += `    ${i + 1}. ${link.textContent.trim()}\n`;
+                        });
+                    }
+                }
+
+                // 分析 gitFun 文件夹
+                const gitFunFolder = Array.from(folders).find(h3 => h3.textContent.trim() === 'gitFun');
+                if (gitFunFolder) {
+                    analysis += `\n📁 gitFun 文件夹分析:\n`;
+                    const gitFunDT = gitFunFolder.closest('dt');
+                    const gitFunDL = gitFunDT.nextElementSibling;
+                    if (gitFunDL && gitFunDL.tagName.toLowerCase() === 'dl') {
+                        const gitFunLinks = gitFunDL.querySelectorAll('a[href]');
+                        analysis += `  - 包含 ${gitFunLinks.length} 个书签\n`;
+                        analysis += `  - 前3个书签:\n`;
+                        Array.from(gitFunLinks).slice(0, 3).forEach((link, i) => {
+                            analysis += `    ${i + 1}. ${link.textContent.trim()}\n`;
+                        });
+                    }
+                }
+
+                // 分析层级结构
+                analysis += `\n层级结构分析:\n`;
+                const firstLink = doc.querySelector('a[href*="Xray"]'); // work文件夹中的第一个链接
+                if (firstLink) {
+                    analysis += `\n以 "Xray" 链接为例分析路径:\n`;
+                    let current = firstLink;
+                    let level = 0;
+                    while (current && level < 10) {
+                        analysis += `  层级 ${level}: ${current.tagName}`;
+                        if (current.tagName === 'H3') {
+                            analysis += ` - "${current.textContent.trim()}"`;
+                        } else if (current.tagName === 'A') {
+                            analysis += ` - "${current.textContent.trim()}"`;
+                        }
+                        analysis += `\n`;
+                        current = current.parentElement;
+                        level++;
+                    }
+                }
+
+                resultDiv.className = 'result info';
+                resultDiv.innerHTML = analysis;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 分析失败: ${error.message}`;
+            }
+        }
+
+        // 测试已知结构
+        function testKnownStructure() {
+            const resultDiv = document.getElementById('structure-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '🔄 测试已知结构...';
+            resultDiv.className = 'result info';
+
+            // 基于实际文件的简化版本
+            const testHTML = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1>Bookmarks</H1>
+<DL><p>
+<DT><H3>Untitled Folder</H3>
+<DL><p>
+  <DT><H3>收藏夹栏</H3>
+  <DL><p>
+    <DT><H3>work</H3>
+    <DL><p>
+      <DT><A HREF="https://10.132.3.199/task/statistic">Xray</A>
+      <DT><A HREF="http://10.132.3.208:9000/projects">sonarqube</A>
+    </DL><p>
+    <DT><H3>gitFun</H3>
+    <DL><p>
+      <DT><A HREF="https://hellogithub.com/">HelloGitHub</A>
+      <DT><A HREF="https://github.com/trending">Trending repositories</A>
+    </DL><p>
+    <DT><H3>BC</H3>
+    <DL><p>
+      <DT><A HREF="https://gmgn.ai/?chain=eth">GMGN</A>
+    </DL><p>
+    <DT><A HREF="https://www.google.com/">Google (根级别)</A>
+  </DL><p>
+</DL><p>
+</DL><p>`;
+
+            try {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(testHTML, 'text/html');
+                globalDoc = doc;
+
+                let analysis = `已知结构测试结果\n`;
+                analysis += `==================\n\n`;
+
+                // 测试路径提取
+                const xrayLink = doc.querySelector('a[href*="Xray"]');
+                const githubLink = doc.querySelector('a[href*="HelloGitHub"]');
+                const gmgnLink = doc.querySelector('a[href*="gmgn"]');
+                const googleLink = doc.querySelector('a[href*="google"]');
+
+                analysis += `路径提取测试:\n`;
+                
+                if (xrayLink) {
+                    const path = getBookmarkPathFixed(xrayLink);
+                    analysis += `Xray: [${path.join(' > ')}] (期望: [收藏夹栏, work])\n`;
+                }
+                
+                if (githubLink) {
+                    const path = getBookmarkPathFixed(githubLink);
+                    analysis += `HelloGitHub: [${path.join(' > ')}] (期望: [收藏夹栏, gitFun])\n`;
+                }
+                
+                if (gmgnLink) {
+                    const path = getBookmarkPathFixed(gmgnLink);
+                    analysis += `GMGN: [${path.join(' > ')}] (期望: [收藏夹栏, BC])\n`;
+                }
+                
+                if (googleLink) {
+                    const path = getBookmarkPathFixed(googleLink);
+                    analysis += `Google: [${path.join(' > ')}] (期望: [收藏夹栏])\n`;
+                }
+
+                resultDiv.className = 'result info';
+                resultDiv.innerHTML = analysis;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 测试失败: ${error.message}`;
+            }
+        }
+
+        // 测试路径提取
+        function testPathExtraction() {
+            const resultDiv = document.getElementById('path-result');
+            resultDiv.style.display = 'block';
+
+            if (!globalDoc) {
+                resultDiv.innerHTML = '❌ 请先选择文件进行分析';
+                resultDiv.className = 'result error';
+                return;
+            }
+
+            resultDiv.innerHTML = '🔄 测试路径提取...';
+            resultDiv.className = 'result info';
+
+            try {
+                let analysis = `路径提取测试结果\n`;
+                analysis += `==================\n\n`;
+
+                // 测试不同文件夹中的书签
+                const testCases = [
+                    { selector: 'a[href*="Xray"]', expectedPath: ['收藏夹栏', 'work'] },
+                    { selector: 'a[href*="HelloGitHub"]', expectedPath: ['收藏夹栏', 'gitFun'] },
+                    { selector: 'a[href*="gmgn"]', expectedPath: ['收藏夹栏', 'BC'] },
+                    { selector: 'a[href*="ChatGPT"]', expectedPath: ['收藏夹栏', 'AI-Chat'] },
+                    { selector: 'a[href*="google"]', expectedPath: ['收藏夹栏'] }
+                ];
+
+                let successCount = 0;
+                testCases.forEach((testCase, index) => {
+                    const link = globalDoc.querySelector(testCase.selector);
+                    if (link) {
+                        const actualPath = getBookmarkPathFixed(link);
+                        const isCorrect = JSON.stringify(actualPath) === JSON.stringify(testCase.expectedPath);
+                        
+                        analysis += `测试 ${index + 1}: ${link.textContent.trim()}\n`;
+                        analysis += `  实际路径: [${actualPath.join(' > ')}]\n`;
+                        analysis += `  期望路径: [${testCase.expectedPath.join(' > ')}]\n`;
+                        analysis += `  结果: ${isCorrect ? '✅ 正确' : '❌ 错误'}\n\n`;
+                        
+                        if (isCorrect) successCount++;
+                    } else {
+                        analysis += `测试 ${index + 1}: 未找到对应链接\n\n`;
+                    }
+                });
+
+                analysis += `总体结果:\n`;
+                analysis += `- 成功: ${successCount}/${testCases.length}\n`;
+                analysis += `- 成功率: ${((successCount / testCases.length) * 100).toFixed(1)}%\n`;
+
+                if (successCount === testCases.length) {
+                    analysis += `\n🎉 路径提取完全正确！`;
+                    resultDiv.className = 'result success';
+                } else if (successCount > 0) {
+                    analysis += `\n⚠️ 路径提取部分正确，需要进一步调试。`;
+                    resultDiv.className = 'result info';
+                } else {
+                    analysis += `\n❌ 路径提取完全失败，需要重新检查算法。`;
+                    resultDiv.className = 'result error';
+                }
+
+                resultDiv.innerHTML = analysis;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 测试失败: ${error.message}`;
+            }
+        }
+
+        // 验证修复
+        function validateFix() {
+            const resultDiv = document.getElementById('fix-result');
+            resultDiv.style.display = 'block';
+
+            if (!globalDoc) {
+                resultDiv.innerHTML = '❌ 请先选择文件进行分析';
+                resultDiv.className = 'result error';
+                return;
+            }
+
+            resultDiv.innerHTML = '🔄 验证修复效果...';
+            resultDiv.className = 'result info';
+
+            try {
+                let analysis = `修复效果验证\n`;
+                analysis += `==============\n\n`;
+
+                // 统计所有书签的路径提取情况
+                const allLinks = globalDoc.querySelectorAll('a[href]');
+                const httpLinks = Array.from(allLinks).filter(link => 
+                    link.href && link.href.startsWith('http')
+                );
+
+                analysis += `总书签数: ${httpLinks.length}\n\n`;
+
+                const pathStats = {};
+                let successCount = 0;
+
+                httpLinks.forEach(link => {
+                    const path = getBookmarkPathFixed(link);
+                    const pathKey = path.length > 0 ? path.join(' > ') : 'ROOT';
+                    pathStats[pathKey] = (pathStats[pathKey] || 0) + 1;
+                    
+                    if (path.length > 0) successCount++;
+                });
+
+                analysis += `路径分布统计:\n`;
+                Object.entries(pathStats).forEach(([path, count]) => {
+                    analysis += `- "${path}": ${count} 个书签\n`;
+                });
+
+                const successRate = (successCount / httpLinks.length) * 100;
+                analysis += `\n修复效果:\n`;
+                analysis += `- 有路径的书签: ${successCount}/${httpLinks.length}\n`;
+                analysis += `- 成功率: ${successRate.toFixed(1)}%\n`;
+
+                if (successRate >= 80) {
+                    analysis += `\n🎉 修复非常成功！`;
+                    resultDiv.className = 'result success';
+                } else if (successRate >= 50) {
+                    analysis += `\n✅ 修复部分成功。`;
+                    resultDiv.className = 'result info';
+                } else {
+                    analysis += `\n❌ 修复效果不理想。`;
+                    resultDiv.className = 'result error';
+                }
+
+                // 显示具体的文件夹书签分配
+                analysis += `\n\n具体文件夹书签分配:\n`;
+                const expectedFolders = ['work', 'work-assist', 'AI-Chat', 'AI', 'gitFun', 'BC', 'CTF', 'Game'];
+                expectedFolders.forEach(folderName => {
+                    const count = pathStats[`收藏夹栏 > ${folderName}`] || 0;
+                    analysis += `- ${folderName}: ${count} 个书签\n`;
+                });
+
+                resultDiv.innerHTML = analysis;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 验证失败: ${error.message}`;
+            }
+        }
+
+        // 修复后的路径提取函数
+        function getBookmarkPathFixed(linkElement) {
+            const path = [];
+            let current = linkElement.closest('dt');
+            let loopCount = 0;
+            
+            while (current && loopCount < 10) {
+                loopCount++;
+                const parentDL = current.parentElement;
+                
+                if (parentDL && parentDL.tagName.toLowerCase() === 'dl') {
+                    let folderDT = parentDL.previousElementSibling;
+                    
+                    while (folderDT && folderDT.nodeType !== Node.ELEMENT_NODE) {
+                        folderDT = folderDT.previousSibling;
+                    }
+                    
+                    if (folderDT && folderDT.tagName.toLowerCase() === 'dt') {
+                        const folderH3 = folderDT.querySelector('h3');
+                        if (folderH3) {
+                            const folderName = folderH3.textContent.trim();
+                            if (folderName && folderName !== 'Untitled Folder') {
+                                path.unshift(folderName);
+                            }
+                        }
+                    }
+                    
+                    current = folderDT;
+                } else {
+                    break;
+                }
+            }
+            
+            return path;
+        }
+
+        // 辅助函数
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(new Error('文件读取失败'));
+                reader.readAsText(file, 'UTF-8');
+            });
+        }
+    </script>
+</body>
+</html>

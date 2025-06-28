@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>调试文件夹路径提取问题</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            backdrop-filter: blur(10px);
+        }
+
+        .test-button {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.3);
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+        }
+
+        .result.success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 2px solid rgba(34, 197, 94, 0.6);
+        }
+
+        .result.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid rgba(239, 68, 68, 0.6);
+        }
+
+        .result.info {
+            background: rgba(59, 130, 246, 0.2);
+            border: 2px solid rgba(59, 130, 246, 0.6);
+        }
+
+        .file-input {
+            margin: 10px 0;
+            padding: 10px;
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 调试文件夹路径提取问题</h1>
+        <p>深度分析为什么书签没有正确分配到文件夹</p>
+    </div>
+
+    <div class="test-section">
+        <h3>📁 深度路径提取调试</h3>
+        <div class="file-input">
+            <input type="file" id="bookmark-file" accept=".html" onchange="deepDebugPathExtraction(event)">
+            <p>选择你的 bookmarks_2025-06-27.html 文件</p>
+        </div>
+        <button class="test-button" onclick="testWithKnownStructure()">使用已知结构测试</button>
+        <div id="debug-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🧪 多种解析方法对比</h3>
+        <button class="test-button" onclick="compareParsingMethods()">对比不同解析方法</button>
+        <div id="comparison-result" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        let globalFileContent = null;
+
+        // 深度调试路径提取
+        async function deepDebugPathExtraction(event) {
+            const resultDiv = document.getElementById('debug-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '🔄 深度调试路径提取...';
+            resultDiv.className = 'result info';
+
+            try {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const content = await readFileContent(file);
+                globalFileContent = content;
+
+                let analysis = `深度路径提取调试报告\n`;
+                analysis += `========================\n\n`;
+                analysis += `文件: ${file.name}\n`;
+                analysis += `大小: ${file.size} 字节\n\n`;
+
+                // 解析DOM结构
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(content, 'text/html');
+
+                // 分析DOM结构
+                analysis += `DOM结构分析:\n`;
+                const allDLs = doc.querySelectorAll('dl');
+                const allDTs = doc.querySelectorAll('dt');
+                const allH3s = doc.querySelectorAll('h3');
+                const allLinks = doc.querySelectorAll('a[href]');
+
+                analysis += `- DL元素: ${allDLs.length} 个\n`;
+                analysis += `- DT元素: ${allDTs.length} 个\n`;
+                analysis += `- H3元素: ${allH3s.length} 个\n`;
+                analysis += `- 链接元素: ${allLinks.length} 个\n\n`;
+
+                // 分析文件夹结构
+                analysis += `文件夹结构分析:\n`;
+                allH3s.forEach((h3, index) => {
+                    const folderName = h3.textContent.trim();
+                    analysis += `${index + 1}. 文件夹: "${folderName}"\n`;
+                    
+                    // 分析这个文件夹的DOM位置
+                    const dt = h3.closest('dt');
+                    if (dt) {
+                        const parentDL = dt.parentElement;
+                        if (parentDL && parentDL.tagName === 'DL') {
+                            const grandparentDT = parentDL.previousElementSibling;
+                            if (grandparentDT && grandparentDT.tagName === 'DT') {
+                                const grandparentH3 = grandparentDT.querySelector('h3');
+                                if (grandparentH3) {
+                                    analysis += `   父文件夹: "${grandparentH3.textContent.trim()}"\n`;
+                                }
+                            }
+                        }
+                    }
+                });
+
+                analysis += `\n书签路径提取测试:\n`;
+                
+                // 测试前10个书签的路径提取
+                const bookmarkLinks = Array.from(allLinks).filter(link => 
+                    link.href && link.href.startsWith('http')
+                ).slice(0, 10);
+
+                bookmarkLinks.forEach((link, index) => {
+                    const title = link.textContent.trim();
+                    analysis += `\n${index + 1}. 书签: "${title}"\n`;
+                    
+                    // 使用当前的路径提取逻辑
+                    const path1 = getBookmarkPathMethod1(link);
+                    analysis += `   方法1路径: [${path1.join(' > ')}]\n`;
+                    
+                    // 使用改进的路径提取逻辑
+                    const path2 = getBookmarkPathMethod2(link);
+                    analysis += `   方法2路径: [${path2.join(' > ')}]\n`;
+                    
+                    // 使用最简单的路径提取逻辑
+                    const path3 = getBookmarkPathMethod3(link);
+                    analysis += `   方法3路径: [${path3.join(' > ')}]\n`;
+                    
+                    // 分析DOM结构
+                    analysis += `   DOM分析:\n`;
+                    let current = link;
+                    let level = 0;
+                    while (current && current.parentElement && level < 10) {
+                        current = current.parentElement;
+                        if (current.tagName === 'DL') {
+                            const prevSibling = current.previousElementSibling;
+                            if (prevSibling && prevSibling.tagName === 'DT') {
+                                const h3 = prevSibling.querySelector('h3');
+                                if (h3) {
+                                    analysis += `     层级${level}: DL -> DT -> H3 "${h3.textContent.trim()}"\n`;
+                                }
+                            }
+                        }
+                        level++;
+                    }
+                });
+
+                resultDiv.className = 'result info';
+                resultDiv.innerHTML = analysis;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 调试失败: ${error.message}\n\nStack trace:\n${error.stack}`;
+            }
+        }
+
+        // 使用已知结构测试
+        function testWithKnownStructure() {
+            const resultDiv = document.getElementById('debug-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '🔄 使用已知结构测试...';
+            resultDiv.className = 'result info';
+
+            // 基于你的实际文件结构的测试HTML
+            const testHTML = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1>Bookmarks</H1>
+<DL><p>
+<DT><H3>Untitled Folder</H3>
+<DL><p>
+  <DT><H3>收藏夹栏</H3>
+  <DL><p>
+    <DT><H3>work-assist</H3>
+    <DL><p>
+      <DT><A HREF="https://aflowmind.com/app/mindmap/6E1-YDYVBAN4ORDO7PSH">AflowMind: The AI Mind Mapping Tool</A>
+      <DT><A HREF="https://app.amymind.com/mindmap/new">AmyMind</A>
+    </DL><p>
+    <DT><H3>AI-Chat</H3>
+    <DL><p>
+      <DT><A HREF="https://chat.openai.com/chat">ChatGPT</A>
+      <DT><A HREF="https://gemini.google.com/u/1/app/74a659aed20881f2">Gemini Advanced</A>
+    </DL><p>
+    <DT><A HREF="https://github.com/">GitHub (根级别)</A>
+  </DL><p>
+</DL><p>
+</DL><p>`;
+
+            try {
+                let analysis = `已知结构测试结果\n`;
+                analysis += `==================\n\n`;
+                analysis += `期望结果:\n`;
+                analysis += `- AflowMind: [收藏夹栏, work-assist]\n`;
+                analysis += `- AmyMind: [收藏夹栏, work-assist]\n`;
+                analysis += `- ChatGPT: [收藏夹栏, AI-Chat]\n`;
+                analysis += `- Gemini: [收藏夹栏, AI-Chat]\n`;
+                analysis += `- GitHub: [收藏夹栏]\n\n`;
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(testHTML, 'text/html');
+                const links = doc.querySelectorAll('a[href]');
+
+                analysis += `实际结果:\n`;
+                links.forEach((link, index) => {
+                    const title = link.textContent.trim();
+                    const path1 = getBookmarkPathMethod1(link);
+                    const path2 = getBookmarkPathMethod2(link);
+                    const path3 = getBookmarkPathMethod3(link);
+                    
+                    analysis += `${index + 1}. ${title}:\n`;
+                    analysis += `   方法1: [${path1.join(', ')}]\n`;
+                    analysis += `   方法2: [${path2.join(', ')}]\n`;
+                    analysis += `   方法3: [${path3.join(', ')}]\n\n`;
+                });
+
+                // 检查哪种方法最准确
+                const aflowmindLink = Array.from(links).find(link => 
+                    link.textContent.includes('AflowMind')
+                );
+                
+                if (aflowmindLink) {
+                    const path1 = getBookmarkPathMethod1(aflowmindLink);
+                    const path2 = getBookmarkPathMethod2(aflowmindLink);
+                    const path3 = getBookmarkPathMethod3(aflowmindLink);
+                    
+                    analysis += `准确性检查 (AflowMind应该在 [收藏夹栏, work-assist]):\n`;
+                    analysis += `- 方法1: ${path1.includes('work-assist') && path1.includes('收藏夹栏') ? '✅ 正确' : '❌ 错误'}\n`;
+                    analysis += `- 方法2: ${path2.includes('work-assist') && path2.includes('收藏夹栏') ? '✅ 正确' : '❌ 错误'}\n`;
+                    analysis += `- 方法3: ${path3.includes('work-assist') && path3.includes('收藏夹栏') ? '✅ 正确' : '❌ 错误'}\n`;
+                }
+
+                resultDiv.className = 'result info';
+                resultDiv.innerHTML = analysis;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 测试失败: ${error.message}`;
+            }
+        }
+
+        // 对比不同解析方法
+        function compareParsingMethods() {
+            const resultDiv = document.getElementById('comparison-result');
+            resultDiv.style.display = 'block';
+
+            if (!globalFileContent) {
+                resultDiv.innerHTML = '❌ 请先选择文件进行调试';
+                resultDiv.className = 'result error';
+                return;
+            }
+
+            resultDiv.innerHTML = '🔄 对比不同解析方法...';
+            resultDiv.className = 'result info';
+
+            try {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(globalFileContent, 'text/html');
+                const links = Array.from(doc.querySelectorAll('a[href]')).filter(link => 
+                    link.href && link.href.startsWith('http')
+                ).slice(0, 20);
+
+                let analysis = `解析方法对比结果\n`;
+                analysis += `==================\n\n`;
+                analysis += `测试 ${links.length} 个书签的路径提取\n\n`;
+
+                const method1Results = {};
+                const method2Results = {};
+                const method3Results = {};
+
+                links.forEach((link, index) => {
+                    const title = link.textContent.trim();
+                    const path1 = getBookmarkPathMethod1(link);
+                    const path2 = getBookmarkPathMethod2(link);
+                    const path3 = getBookmarkPathMethod3(link);
+                    
+                    const pathKey1 = path1.length > 0 ? path1.join(' > ') : 'ROOT';
+                    const pathKey2 = path2.length > 0 ? path2.join(' > ') : 'ROOT';
+                    const pathKey3 = path3.length > 0 ? path3.join(' > ') : 'ROOT';
+                    
+                    method1Results[pathKey1] = (method1Results[pathKey1] || 0) + 1;
+                    method2Results[pathKey2] = (method2Results[pathKey2] || 0) + 1;
+                    method3Results[pathKey3] = (method3Results[pathKey3] || 0) + 1;
+                });
+
+                analysis += `方法1结果分布:\n`;
+                Object.entries(method1Results).forEach(([path, count]) => {
+                    analysis += `- "${path}": ${count} 个书签\n`;
+                });
+
+                analysis += `\n方法2结果分布:\n`;
+                Object.entries(method2Results).forEach(([path, count]) => {
+                    analysis += `- "${path}": ${count} 个书签\n`;
+                });
+
+                analysis += `\n方法3结果分布:\n`;
+                Object.entries(method3Results).forEach(([path, count]) => {
+                    analysis += `- "${path}": ${count} 个书签\n`;
+                });
+
+                // 分析哪种方法最好
+                const method1RootCount = method1Results['ROOT'] || 0;
+                const method2RootCount = method2Results['ROOT'] || 0;
+                const method3RootCount = method3Results['ROOT'] || 0;
+
+                analysis += `\n分析结果:\n`;
+                analysis += `- 方法1: ${method1RootCount}/${links.length} 个书签在根目录\n`;
+                analysis += `- 方法2: ${method2RootCount}/${links.length} 个书签在根目录\n`;
+                analysis += `- 方法3: ${method3RootCount}/${links.length} 个书签在根目录\n\n`;
+
+                const bestMethod = method1RootCount <= method2RootCount && method1RootCount <= method3RootCount ? 1 :
+                                 method2RootCount <= method3RootCount ? 2 : 3;
+
+                analysis += `推荐使用方法${bestMethod}，因为它将最少的书签放在根目录。`;
+
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = analysis;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 对比失败: ${error.message}`;
+            }
+        }
+
+        // 路径提取方法1 (当前使用的)
+        function getBookmarkPathMethod1(linkElement) {
+            const path = [];
+            let current = linkElement;
+            
+            while (current && current.parentElement) {
+                current = current.parentElement;
+                
+                if (current.tagName === 'DL') {
+                    let folderDT = current.previousElementSibling;
+                    
+                    while (folderDT && folderDT.nodeType !== Node.ELEMENT_NODE) {
+                        folderDT = folderDT.previousSibling;
+                    }
+                    
+                    if (folderDT && folderDT.tagName === 'DT') {
+                        const folderH3 = folderDT.querySelector('h3');
+                        if (folderH3) {
+                            const folderName = folderH3.textContent.trim();
+                            if (folderName !== 'Untitled Folder') {
+                                path.unshift(folderName);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return path;
+        }
+
+        // 路径提取方法2 (改进版)
+        function getBookmarkPathMethod2(linkElement) {
+            const path = [];
+            let current = linkElement.closest('dt');
+            
+            while (current) {
+                const parentDL = current.parentElement;
+                if (parentDL && parentDL.tagName === 'DL') {
+                    const folderDT = parentDL.previousElementSibling;
+                    if (folderDT && folderDT.tagName === 'DT') {
+                        const folderH3 = folderDT.querySelector('h3');
+                        if (folderH3) {
+                            const folderName = folderH3.textContent.trim();
+                            if (folderName !== 'Untitled Folder') {
+                                path.unshift(folderName);
+                            }
+                        }
+                    }
+                    current = folderDT;
+                } else {
+                    break;
+                }
+            }
+            
+            return path;
+        }
+
+        // 路径提取方法3 (最简单)
+        function getBookmarkPathMethod3(linkElement) {
+            const path = [];
+            let element = linkElement;
+            
+            // 向上查找所有包含的DL元素
+            while (element) {
+                element = element.parentElement;
+                if (element && element.tagName === 'DL') {
+                    // 查找这个DL对应的文件夹名
+                    const prevElement = element.previousElementSibling;
+                    if (prevElement && prevElement.tagName === 'DT') {
+                        const h3 = prevElement.querySelector('h3');
+                        if (h3) {
+                            const folderName = h3.textContent.trim();
+                            if (folderName !== 'Untitled Folder') {
+                                path.unshift(folderName);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return path;
+        }
+
+        // 辅助函数
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(new Error('文件读取失败'));
+                reader.readAsText(file, 'UTF-8');
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickFinder 预加载设置</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 32px;
+            font-weight: 700;
+        }
+        
+        .section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .section h2 {
+            margin-top: 0;
+            color: #374151;
+            font-size: 20px;
+            margin-bottom: 16px;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .status-card {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        
+        .status-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #3b82f6;
+            margin-bottom: 4px;
+        }
+        
+        .status-label {
+            font-size: 12px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .progress-container {
+            margin: 20px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #f3f4f6;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #10b981);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        
+        .config-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .config-item label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .config-item input,
+        .config-item select {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn.primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn.secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .btn.success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn.danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .log-container {
+            background: #1f2937;
+            color: #f9fafb;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin: 16px 0;
+        }
+        
+        .cache-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin: 16px 0;
+        }
+        
+        .cache-stat {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+        }
+        
+        .cache-stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #059669;
+            margin-bottom: 4px;
+        }
+        
+        .cache-stat-label {
+            font-size: 11px;
+            color: #6b7280;
+            text-transform: uppercase;
+        }
+        
+        .stage-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-left: 8px;
+        }
+        
+        .stage-indicator.idle {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+        
+        .stage-indicator.active {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .stage-indicator.completed {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+            font-size: 14px;
+        }
+        
+        .alert.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #93c5fd;
+        }
+        
+        .alert.success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #86efac;
+        }
+        
+        .alert.warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        
+        .alert.error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fca5a5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 QuickFinder 预加载管理</h1>
+        
+        <!-- 状态概览 -->
+        <div class="section">
+            <h2>📊 预加载状态</h2>
+            <div class="status-grid">
+                <div class="status-card">
+                    <div class="status-value" id="total-items">-</div>
+                    <div class="status-label">总项目数</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-value" id="completed-items">-</div>
+                    <div class="status-label">已完成</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-value" id="failed-items">-</div>
+                    <div class="status-label">失败</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-value" id="cache-size">-</div>
+                    <div class="status-label">缓存大小</div>
+                </div>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-text">
+                    <span>预加载进度</span>
+                    <span id="progress-percentage">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="progress-text">
+                    <span id="current-stage">等待中...</span>
+                    <span class="stage-indicator idle" id="stage-indicator">空闲</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 配置设置 -->
+        <div class="section">
+            <h2>⚙️ 预加载配置</h2>
+            <div class="config-grid">
+                <div class="config-item">
+                    <label for="max-history">最大历史记录数</label>
+                    <input type="number" id="max-history" min="50" max="500" value="100">
+                </div>
+                <div class="config-item">
+                    <label for="max-concurrent">最大并发数</label>
+                    <input type="number" id="max-concurrent" min="5" max="20" value="10">
+                </div>
+                <div class="config-item">
+                    <label for="cache-expiry">缓存过期时间(小时)</label>
+                    <input type="number" id="cache-expiry" min="1" max="168" value="24">
+                </div>
+                <div class="config-item">
+                    <label for="batch-size">批处理大小</label>
+                    <input type="number" id="batch-size" min="10" max="50" value="20">
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button class="btn primary" onclick="saveConfig()">
+                    💾 保存配置
+                </button>
+                <button class="btn secondary" onclick="resetConfig()">
+                    🔄 重置默认
+                </button>
+            </div>
+        </div>
+        
+        <!-- 操作控制 -->
+        <div class="section">
+            <h2>🎮 操作控制</h2>
+            <div class="button-group">
+                <button class="btn success" onclick="triggerPreload()" id="preload-btn">
+                    🚀 开始预加载
+                </button>
+                <button class="btn secondary" onclick="getProgress()">
+                    📊 刷新状态
+                </button>
+                <button class="btn danger" onclick="clearCache()">
+                    🗑️ 清空缓存
+                </button>
+                <button class="btn secondary" onclick="exportCache()">
+                    📤 导出缓存
+                </button>
+            </div>
+            
+            <div id="alert-container"></div>
+        </div>
+        
+        <!-- 缓存统计 -->
+        <div class="section">
+            <h2>📈 缓存统计</h2>
+            <div class="cache-stats" id="cache-stats">
+                <!-- 动态生成 -->
+            </div>
+        </div>
+        
+        <!-- 操作日志 -->
+        <div class="section">
+            <h2>📝 操作日志</h2>
+            <div class="button-group">
+                <button class="btn secondary" onclick="clearLog()">
+                    🧹 清空日志
+                </button>
+                <button class="btn secondary" onclick="exportLog()">
+                    📤 导出日志
+                </button>
+            </div>
+            <div class="log-container" id="log-container"></div>
+        </div>
+    </div>
+    
+    <script>
+        let updateInterval = null;
+        
+        // 页面加载时初始化
+        window.addEventListener('load', async () => {
+            addLog('预加载设置页面已加载');
+            await loadConfig();
+            await getProgress();
+            
+            // 开始定期更新状态
+            updateInterval = setInterval(getProgress, 2000);
+        });
+        
+        // 页面卸载时清理
+        window.addEventListener('beforeunload', () => {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+        });
+        
+        // 加载配置
+        async function loadConfig() {
+            try {
+                const response = await chrome.runtime.sendMessage({
+                    action: 'get-preload-progress'
+                });
+                
+                if (response && response.success) {
+                    // 这里可以加载配置，暂时使用默认值
+                    addLog('配置已加载');
+                }
+            } catch (error) {
+                addLog(`加载配置失败: ${error.message}`);
+            }
+        }
+        
+        // 保存配置
+        async function saveConfig() {
+            try {
+                const config = {
+                    maxHistoryItems: parseInt(document.getElementById('max-history').value),
+                    maxConcurrentLoads: parseInt(document.getElementById('max-concurrent').value),
+                    iconCacheExpiry: parseInt(document.getElementById('cache-expiry').value) * 60 * 60 * 1000,
+                    batchSize: parseInt(document.getElementById('batch-size').value)
+                };
+                
+                const response = await chrome.runtime.sendMessage({
+                    action: 'update-preload-config',
+                    config: config
+                });
+                
+                if (response && response.success) {
+                    showAlert('配置已保存', 'success');
+                    addLog('配置已保存: ' + JSON.stringify(config));
+                } else {
+                    showAlert('保存配置失败: ' + (response?.error || '未知错误'), 'error');
+                }
+            } catch (error) {
+                showAlert('保存配置失败: ' + error.message, 'error');
+                addLog(`保存配置失败: ${error.message}`);
+            }
+        }
+        
+        // 重置配置
+        function resetConfig() {
+            document.getElementById('max-history').value = 100;
+            document.getElementById('max-concurrent').value = 10;
+            document.getElementById('cache-expiry').value = 24;
+            document.getElementById('batch-size').value = 20;
+            showAlert('配置已重置为默认值', 'info');
+            addLog('配置已重置为默认值');
+        }
+        
+        // 触发预加载
+        async function triggerPreload() {
+            try {
+                const btn = document.getElementById('preload-btn');
+                btn.disabled = true;
+                btn.textContent = '🔄 预加载中...';
+                
+                const response = await chrome.runtime.sendMessage({
+                    action: 'trigger-preload'
+                });
+                
+                if (response && response.success) {
+                    showAlert('预加载已开始', 'success');
+                    addLog('手动触发预加载');
+                } else {
+                    showAlert('启动预加载失败: ' + (response?.error || '未知错误'), 'error');
+                }
+            } catch (error) {
+                showAlert('启动预加载失败: ' + error.message, 'error');
+                addLog(`启动预加载失败: ${error.message}`);
+            } finally {
+                setTimeout(() => {
+                    const btn = document.getElementById('preload-btn');
+                    btn.disabled = false;
+                    btn.textContent = '🚀 开始预加载';
+                }, 2000);
+            }
+        }
+        
+        // 获取进度
+        async function getProgress() {
+            try {
+                const response = await chrome.runtime.sendMessage({
+                    action: 'get-preload-progress'
+                });
+                
+                if (response && response.success) {
+                    updateProgressDisplay(response.progress);
+                }
+            } catch (error) {
+                console.warn('获取进度失败:', error);
+            }
+        }
+        
+        // 更新进度显示
+        function updateProgressDisplay(progress) {
+            // 更新状态卡片
+            document.getElementById('total-items').textContent = progress.total || 0;
+            document.getElementById('completed-items').textContent = progress.completed || 0;
+            document.getElementById('failed-items').textContent = progress.failed || 0;
+            
+            // 更新进度条
+            const percentage = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
+            document.getElementById('progress-percentage').textContent = percentage + '%';
+            document.getElementById('progress-fill').style.width = percentage + '%';
+            
+            // 更新阶段
+            const stageText = getStageText(progress.stage);
+            document.getElementById('current-stage').textContent = stageText;
+            
+            const indicator = document.getElementById('stage-indicator');
+            indicator.className = 'stage-indicator ' + getStageClass(progress.stage);
+            indicator.textContent = stageText;
+        }
+        
+        // 获取阶段文本
+        function getStageText(stage) {
+            const stages = {
+                'idle': '空闲',
+                'collecting': '收集数据',
+                'bookmarks': '处理书签',
+                'history': '处理历史',
+                'mostVisited': '处理常访问',
+                'icons': '加载图标',
+                'completed': '已完成'
+            };
+            return stages[stage] || stage;
+        }
+        
+        // 获取阶段样式
+        function getStageClass(stage) {
+            if (stage === 'idle' || stage === 'completed') return stage;
+            return 'active';
+        }
+        
+        // 清空缓存
+        async function clearCache() {
+            if (!confirm('确定要清空所有预加载缓存吗？这将删除所有已缓存的图标。')) {
+                return;
+            }
+            
+            try {
+                const response = await chrome.runtime.sendMessage({
+                    action: 'clear-icon-cache'
+                });
+                
+                if (response && response.success) {
+                    showAlert('缓存已清空', 'success');
+                    addLog('图标缓存已清空');
+                    await getProgress();
+                } else {
+                    showAlert('清空缓存失败: ' + (response?.error || '未知错误'), 'error');
+                }
+            } catch (error) {
+                showAlert('清空缓存失败: ' + error.message, 'error');
+                addLog(`清空缓存失败: ${error.message}`);
+            }
+        }
+        
+        // 显示提醒
+        function showAlert(message, type = 'info') {
+            const container = document.getElementById('alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert ${type}`;
+            alert.textContent = message;
+            
+            container.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+        
+        // 添加日志
+        function addLog(message) {
+            const logContainer = document.getElementById('log-container');
+            const timestamp = new Date().toLocaleTimeString();
+            logContainer.textContent += `[${timestamp}] ${message}\n`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // 清空日志
+        function clearLog() {
+            document.getElementById('log-container').textContent = '';
+            addLog('日志已清空');
+        }
+        
+        // 导出日志
+        function exportLog() {
+            const logContent = document.getElementById('log-container').textContent;
+            const blob = new Blob([logContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `quickfinder-preload-log-${new Date().toISOString().slice(0, 10)}.txt`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+            addLog('日志已导出');
+        }
+        
+        // 导出缓存
+        function exportCache() {
+            // 这里可以实现缓存导出功能
+            showAlert('缓存导出功能开发中...', 'info');
+            addLog('缓存导出功能开发中');
+        }
+    </script>
+</body>
+</html>

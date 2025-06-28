@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>书签导入调试工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .debug-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            backdrop-filter: blur(10px);
+        }
+
+        .debug-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #fff;
+        }
+
+        .test-button {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.3);
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .result.success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 2px solid rgba(34, 197, 94, 0.6);
+        }
+
+        .result.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid rgba(239, 68, 68, 0.6);
+        }
+
+        .result.info {
+            background: rgba(59, 130, 246, 0.2);
+            border: 2px solid rgba(59, 130, 246, 0.6);
+        }
+
+        .result.warning {
+            background: rgba(245, 158, 11, 0.2);
+            border: 2px solid rgba(245, 158, 11, 0.6);
+        }
+
+        .file-input {
+            margin: 10px 0;
+            padding: 10px;
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .sample-html {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔧 书签导入调试工具</h1>
+        <p>专门用于调试书签导入只成功第一个的问题</p>
+    </div>
+
+    <!-- 权限检查 -->
+    <div class="debug-section">
+        <div class="debug-title">🔐 权限检查</div>
+        <button class="test-button" onclick="checkPermissions()">检查扩展权限</button>
+        <div id="permissions-result" class="result" style="display:none;"></div>
+    </div>
+
+    <!-- 简单测试 -->
+    <div class="debug-section">
+        <div class="debug-title">🧪 简单书签创建测试</div>
+        <button class="test-button" onclick="testSimpleBookmarkCreation()">测试创建单个书签</button>
+        <button class="test-button" onclick="testMultipleBookmarkCreation()">测试创建多个书签</button>
+        <div id="simple-test-result" class="result" style="display:none;"></div>
+    </div>
+
+    <!-- 模拟导入测试 -->
+    <div class="debug-section">
+        <div class="debug-title">📚 模拟导入测试</div>
+        <button class="test-button" onclick="testMockImport()">测试模拟书签导入</button>
+        <div id="mock-import-result" class="result" style="display:none;"></div>
+    </div>
+
+    <!-- 实际文件导入测试 -->
+    <div class="debug-section">
+        <div class="debug-title">📁 实际文件导入测试</div>
+        <div class="file-input">
+            <input type="file" id="test-file-input" accept=".html" onchange="testRealFileImport(event)">
+            <p>选择一个书签HTML文件进行测试</p>
+        </div>
+        <div id="file-import-result" class="result" style="display:none;"></div>
+    </div>
+
+    <!-- 示例HTML -->
+    <div class="debug-section">
+        <div class="debug-title">📄 测试用书签HTML示例</div>
+        <p>如果没有书签文件，可以复制以下内容保存为.html文件进行测试：</p>
+        <div class="sample-html">
+&lt;!DOCTYPE NETSCAPE-Bookmark-file-1&gt;
+&lt;HTML&gt;
+&lt;HEAD&gt;
+&lt;TITLE&gt;Bookmarks&lt;/TITLE&gt;
+&lt;/HEAD&gt;
+&lt;BODY&gt;
+&lt;H1&gt;Bookmarks&lt;/H1&gt;
+&lt;DL&gt;
+    &lt;DT&gt;&lt;A HREF="https://www.google.com"&gt;Google&lt;/A&gt;
+    &lt;DT&gt;&lt;A HREF="https://www.github.com"&gt;GitHub&lt;/A&gt;
+    &lt;DT&gt;&lt;A HREF="https://www.stackoverflow.com"&gt;Stack Overflow&lt;/A&gt;
+    &lt;DT&gt;&lt;H3&gt;开发工具&lt;/H3&gt;
+    &lt;DL&gt;
+        &lt;DT&gt;&lt;A HREF="https://developer.mozilla.org"&gt;MDN Web Docs&lt;/A&gt;
+        &lt;DT&gt;&lt;A HREF="https://www.w3schools.com"&gt;W3Schools&lt;/A&gt;
+    &lt;/DL&gt;
+&lt;/DL&gt;
+&lt;/BODY&gt;
+&lt;/HTML&gt;
+        </div>
+    </div>
+
+    <script>
+        // 检查权限
+        async function checkPermissions() {
+            const resultDiv = document.getElementById('permissions-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '🔄 正在检查权限...';
+            resultDiv.className = 'result info';
+
+            try {
+                let output = `权限检查结果:\n\n`;
+
+                // 检查书签权限
+                try {
+                    const bookmarks = await chrome.bookmarks.getTree();
+                    output += `✅ 书签权限: 正常 (找到 ${bookmarks.length} 个根节点)\n`;
+                } catch (error) {
+                    output += `❌ 书签权限: 失败 - ${error.message}\n`;
+                }
+
+                // 检查存储权限
+                try {
+                    await chrome.storage.local.set({ test: 'test' });
+                    await chrome.storage.local.remove('test');
+                    output += `✅ 存储权限: 正常\n`;
+                } catch (error) {
+                    output += `❌ 存储权限: 失败 - ${error.message}\n`;
+                }
+
+                // 检查当前标签页权限
+                try {
+                    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+                    output += `✅ 标签页权限: 正常 (当前标签: ${tabs[0]?.url})\n`;
+                } catch (error) {
+                    output += `❌ 标签页权限: 失败 - ${error.message}\n`;
+                }
+
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = output;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 权限检查失败: ${error.message}`;
+            }
+        }
+
+        // 测试简单书签创建
+        async function testSimpleBookmarkCreation() {
+            const resultDiv = document.getElementById('simple-test-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '🔄 正在测试单个书签创建...';
+            resultDiv.className = 'result info';
+
+            try {
+                // 创建测试文件夹
+                const testFolder = await chrome.bookmarks.create({
+                    parentId: '1', // 书签栏
+                    title: `QuickFinder测试_${Date.now()}`
+                });
+
+                console.log('✅ 测试文件夹创建成功:', testFolder);
+
+                // 创建单个书签
+                const testBookmark = await chrome.bookmarks.create({
+                    parentId: testFolder.id,
+                    title: '测试书签',
+                    url: 'https://www.example.com'
+                });
+
+                console.log('✅ 测试书签创建成功:', testBookmark);
+
+                let output = `单个书签创建测试:\n\n`;
+                output += `✅ 测试文件夹: ${testFolder.title} (ID: ${testFolder.id})\n`;
+                output += `✅ 测试书签: ${testBookmark.title} (ID: ${testBookmark.id})\n`;
+                output += `📍 URL: ${testBookmark.url}\n\n`;
+                output += `🎉 单个书签创建测试成功！`;
+
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = output;
+            } catch (error) {
+                console.error('❌ 单个书签创建失败:', error);
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 单个书签创建失败: ${error.message}`;
+            }
+        }
+
+        // 测试多个书签创建
+        async function testMultipleBookmarkCreation() {
+            const resultDiv = document.getElementById('simple-test-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '🔄 正在测试多个书签创建...';
+            resultDiv.className = 'result info';
+
+            try {
+                // 创建测试文件夹
+                const testFolder = await chrome.bookmarks.create({
+                    parentId: '1', // 书签栏
+                    title: `QuickFinder批量测试_${Date.now()}`
+                });
+
+                console.log('✅ 测试文件夹创建成功:', testFolder);
+
+                const testBookmarks = [
+                    { title: '测试书签1', url: 'https://www.example1.com' },
+                    { title: '测试书签2', url: 'https://www.example2.com' },
+                    { title: '测试书签3', url: 'https://www.example3.com' },
+                    { title: '测试书签4', url: 'https://www.example4.com' },
+                    { title: '测试书签5', url: 'https://www.example5.com' }
+                ];
+
+                let output = `多个书签创建测试:\n\n`;
+                output += `📁 测试文件夹: ${testFolder.title} (ID: ${testFolder.id})\n\n`;
+
+                let successCount = 0;
+                let errorCount = 0;
+
+                for (let i = 0; i < testBookmarks.length; i++) {
+                    const bookmarkData = testBookmarks[i];
+                    
+                    try {
+                        console.log(`🔖 创建书签 ${i + 1}/${testBookmarks.length}: ${bookmarkData.title}`);
+                        
+                        // 添加延迟
+                        if (i > 0) {
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                        }
+
+                        const createdBookmark = await chrome.bookmarks.create({
+                            parentId: testFolder.id,
+                            title: bookmarkData.title,
+                            url: bookmarkData.url
+                        });
+
+                        console.log(`✅ 书签创建成功:`, createdBookmark);
+                        output += `✅ ${bookmarkData.title} (ID: ${createdBookmark.id})\n`;
+                        successCount++;
+
+                    } catch (error) {
+                        console.error(`❌ 书签创建失败:`, bookmarkData.title, error);
+                        output += `❌ ${bookmarkData.title} - 失败: ${error.message}\n`;
+                        errorCount++;
+                    }
+                }
+
+                output += `\n📊 结果统计:\n`;
+                output += `  - 成功: ${successCount} 个\n`;
+                output += `  - 失败: ${errorCount} 个\n`;
+
+                if (errorCount === 0) {
+                    output += `\n🎉 所有书签创建成功！`;
+                    resultDiv.className = 'result success';
+                } else {
+                    output += `\n⚠️ 部分书签创建失败`;
+                    resultDiv.className = 'result warning';
+                }
+
+                resultDiv.innerHTML = output;
+            } catch (error) {
+                console.error('❌ 多个书签创建测试失败:', error);
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 多个书签创建测试失败: ${error.message}`;
+            }
+        }
+
+        // 测试模拟导入
+        async function testMockImport() {
+            const resultDiv = document.getElementById('mock-import-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '🔄 正在测试模拟导入...';
+            resultDiv.className = 'result info';
+
+            try {
+                // 模拟书签数据
+                const mockBookmarks = [
+                    { type: 'bookmark', title: 'Google', url: 'https://www.google.com', path: [] },
+                    { type: 'bookmark', title: 'GitHub', url: 'https://www.github.com', path: [] },
+                    { type: 'folder', title: '开发工具', path: [] },
+                    { type: 'bookmark', title: 'MDN', url: 'https://developer.mozilla.org', path: ['开发工具'] },
+                    { type: 'bookmark', title: 'W3Schools', url: 'https://www.w3schools.com', path: ['开发工具'] }
+                ];
+
+                // 创建导入文件夹
+                const importFolder = await chrome.bookmarks.create({
+                    parentId: '1',
+                    title: `QuickFinder模拟导入_${Date.now()}`
+                });
+
+                let output = `模拟导入测试:\n\n`;
+                output += `📁 导入文件夹: ${importFolder.title} (ID: ${importFolder.id})\n`;
+                output += `📊 模拟数据: ${mockBookmarks.length} 个项目\n\n`;
+
+                // 使用修复后的导入逻辑
+                const result = await simulateImport(mockBookmarks, importFolder.id);
+
+                output += `📊 导入结果:\n`;
+                output += `  - 成功: ${result.successCount} 个\n`;
+                output += `  - 失败: ${result.errorCount} 个\n`;
+                output += `  - 跳过: ${result.skippedCount || 0} 个\n\n`;
+
+                if (result.errorCount === 0) {
+                    output += `🎉 模拟导入测试成功！`;
+                    resultDiv.className = 'result success';
+                } else {
+                    output += `⚠️ 模拟导入部分失败`;
+                    resultDiv.className = 'result warning';
+                }
+
+                resultDiv.innerHTML = output;
+            } catch (error) {
+                console.error('❌ 模拟导入测试失败:', error);
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 模拟导入测试失败: ${error.message}`;
+            }
+        }
+
+        // 模拟导入函数（复制修复后的逻辑）
+        async function simulateImport(bookmarks, parentId) {
+            console.log(`🚀 开始模拟导入，总数: ${bookmarks.length}`);
+            
+            const folderMap = new Map();
+            folderMap.set('', parentId);
+            
+            let successCount = 0;
+            let errorCount = 0;
+            let skippedCount = 0;
+
+            // 创建文件夹
+            const folders = bookmarks.filter(b => b.type === 'folder');
+            console.log(`📂 需要创建 ${folders.length} 个文件夹`);
+            
+            for (let i = 0; i < folders.length; i++) {
+                const bookmark = folders[i];
+                const pathKey = bookmark.path.join('/');
+                const parentFolderId = folderMap.get(pathKey) || parentId;
+
+                try {
+                    if (i > 0) await new Promise(resolve => setTimeout(resolve, 50));
+
+                    const folder = await chrome.bookmarks.create({
+                        parentId: parentFolderId,
+                        title: bookmark.title
+                    });
+
+                    const currentPathKey = [...bookmark.path, bookmark.title].join('/');
+                    folderMap.set(currentPathKey, folder.id);
+                    successCount++;
+                    console.log(`✅ 文件夹创建成功: ${bookmark.title}`);
+
+                } catch (error) {
+                    console.error(`❌ 文件夹创建失败: ${bookmark.title}`, error);
+                    errorCount++;
+                }
+            }
+
+            // 创建书签
+            const bookmarkItems = bookmarks.filter(b => b.type === 'bookmark');
+            console.log(`🔖 需要创建 ${bookmarkItems.length} 个书签`);
+            
+            for (let i = 0; i < bookmarkItems.length; i++) {
+                const bookmark = bookmarkItems[i];
+                const pathKey = bookmark.path.join('/');
+                const targetFolderId = folderMap.get(pathKey) || parentId;
+
+                try {
+                    if (i > 0) await new Promise(resolve => setTimeout(resolve, 50));
+
+                    const createdBookmark = await chrome.bookmarks.create({
+                        parentId: targetFolderId,
+                        title: bookmark.title,
+                        url: bookmark.url
+                    });
+                    
+                    successCount++;
+                    console.log(`✅ 书签创建成功: ${bookmark.title}`);
+
+                } catch (error) {
+                    console.error(`❌ 书签创建失败: ${bookmark.title}`, error);
+                    errorCount++;
+                }
+            }
+
+            return { successCount, errorCount, skippedCount };
+        }
+
+        // 测试实际文件导入
+        async function testRealFileImport(event) {
+            const resultDiv = document.getElementById('file-import-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '🔄 正在测试实际文件导入...';
+            resultDiv.className = 'result info';
+
+            try {
+                const file = event.target.files[0];
+                if (!file) {
+                    resultDiv.innerHTML = '❌ 请选择一个文件';
+                    resultDiv.className = 'result error';
+                    return;
+                }
+
+                // 读取文件
+                const content = await readFileContent(file);
+                
+                // 解析HTML
+                const bookmarks = parseBookmarkHTML(content);
+
+                let output = `实际文件导入测试:\n\n`;
+                output += `📁 文件名: ${file.name}\n`;
+                output += `📊 解析结果: ${bookmarks.length} 个项目\n\n`;
+
+                // 显示解析的书签
+                output += `解析的书签:\n`;
+                bookmarks.forEach((bookmark, index) => {
+                    output += `${index + 1}. [${bookmark.type}] ${bookmark.title}\n`;
+                    if (bookmark.url) output += `   URL: ${bookmark.url}\n`;
+                    if (bookmark.path.length > 0) output += `   路径: ${bookmark.path.join(' > ')}\n`;
+                });
+
+                resultDiv.className = 'result info';
+                resultDiv.innerHTML = output;
+
+            } catch (error) {
+                console.error('❌ 文件导入测试失败:', error);
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 文件导入测试失败: ${error.message}`;
+            }
+        }
+
+        // 辅助函数
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(new Error('文件读取失败'));
+                reader.readAsText(file, 'UTF-8');
+            });
+        }
+
+        function parseBookmarkHTML(htmlContent) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlContent, 'text/html');
+            const bookmarks = [];
+
+            const processElement = (element, parentPath = []) => {
+                if (!element || !element.children) return;
+                
+                const children = Array.from(element.children);
+                console.log(`🔍 处理元素: ${element.tagName}, 子元素数量: ${children.length}`);
+
+                for (const child of children) {
+                    console.log(`📝 处理子元素: ${child.tagName}`);
+                    
+                    if (child.tagName === 'DT') {
+                        const link = child.querySelector('a');
+                        const folder = child.querySelector('h3');
+
+                        if (link && link.href) {
+                            const bookmark = {
+                                type: 'bookmark',
+                                title: link.textContent.trim() || 'Untitled',
+                                url: link.href,
+                                path: [...parentPath]
+                            };
+                            bookmarks.push(bookmark);
+                            console.log(`📖 找到书签: ${bookmark.title}, URL: ${bookmark.url}`);
+                        } else if (folder) {
+                            const folderName = folder.textContent.trim() || 'Untitled Folder';
+                            const folderPath = [...parentPath, folderName];
+
+                            bookmarks.push({
+                                type: 'folder',
+                                title: folderName,
+                                path: [...parentPath]
+                            });
+                            console.log(`📁 找到文件夹: ${folderName}`);
+
+                            // 递归处理文件夹内容 - 查找紧跟在DT后面的DL
+                            const nextSibling = child.nextElementSibling;
+                            if (nextSibling && nextSibling.tagName === 'DL') {
+                                console.log(`🔄 递归处理文件夹内容: ${folderName}`);
+                                processElement(nextSibling, folderPath);
+                            } else {
+                                // 也检查DT内部的DL（某些书签格式可能这样组织）
+                                const dl = child.querySelector('dl');
+                                if (dl) {
+                                    console.log(`🔄 递归处理DT内部的DL: ${folderName}`);
+                                    processElement(dl, folderPath);
+                                }
+                            }
+                        }
+                    } else if (child.tagName === 'DL') {
+                        // 直接处理DL元素（重要：这确保了根级别的DL被正确处理）
+                        console.log(`🔄 递归处理直接的DL元素`);
+                        processElement(child, parentPath);
+                    }
+                }
+            };
+
+            const rootDL = doc.querySelector('dl');
+            if (rootDL) {
+                console.log(`🚀 开始从根DL解析，DL元素数量: ${doc.querySelectorAll('dl').length}`);
+                processElement(rootDL);
+            } else {
+                // 如果没有找到DL，尝试从BODY开始
+                console.log(`⚠️ 未找到根DL元素，尝试从body开始解析`);
+                const body = doc.querySelector('body');
+                if (body) {
+                    processElement(body);
+                }
+            }
+
+            console.log(`📊 解析完成，总共找到: ${bookmarks.length} 个项目`);
+            console.log(`📖 书签数量: ${bookmarks.filter(b => b.type === 'bookmark').length}`);
+            console.log(`📁 文件夹数量: ${bookmarks.filter(b => b.type === 'folder').length}`);
+
+            return bookmarks;
+        }
+    </script>
+</body>
+</html>

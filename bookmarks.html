@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickFinder - 书签管理</title>
+  <link rel="stylesheet" href="bookmarks.css">
+</head>
+<body>
+  <div class="bookmark-manager">
+    <!-- 主布局容器 -->
+    <div class="main-layout">
+      <!-- 左侧边栏 -->
+      <aside class="sidebar">
+        <!-- 图标区 -->
+        <div class="icon-area">
+          <div class="logo">
+            <img src="icons/icon.png" alt="QuickFinder" class="logo-icon">
+          </div>
+        </div>
+
+        <!-- 搜索框栏 -->
+        <div class="search-area">
+          <div class="search-box">
+            <input type="text" id="search-input" placeholder="搜索书签..." class="search-input">
+            <span class="search-icon">🔍</span>
+          </div>
+        </div>
+
+        <!-- 导航菜单 -->
+        <div class="sidebar-section">
+          <h3 class="sidebar-title">快速访问</h3>
+          <ul class="sidebar-menu">
+            <li class="sidebar-item active" data-folder="root">
+              <span class="sidebar-icon">📁</span>
+              <span class="sidebar-text">所有书签</span>
+            </li>
+            <li class="sidebar-item" data-folder="recent">
+              <span class="sidebar-icon">🕒</span>
+              <span class="sidebar-text">最近添加</span>
+            </li>
+            <li class="sidebar-item" data-folder="frequent">
+              <span class="sidebar-icon">⭐</span>
+              <span class="sidebar-text">常用书签</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="sidebar-section">
+          <h3 class="sidebar-title">文件夹</h3>
+          <div class="folder-tree" id="folder-tree">
+            <!-- 动态生成文件夹树 -->
+          </div>
+        </div>
+      </aside>
+
+      <!-- 右侧管理内容区域 -->
+      <main class="main-content">
+        <!-- 顶部工具栏 -->
+        <header class="content-header">
+          <div class="header-left">
+            <div class="breadcrumb">
+              <span class="breadcrumb-item active" id="current-path">书签栏</span>
+            </div>
+          </div>
+
+          <div class="header-right">
+            <div class="view-controls">
+              <button class="view-btn active" data-view="grid" title="网格视图">
+                <span class="icon">⊞</span>
+              </button>
+              <button class="view-btn" data-view="list" title="列表视图">
+                <span class="icon">☰</span>
+              </button>
+            </div>
+            <button class="settings-btn" id="settings-btn" title="设置">
+              <span class="icon">⚙️</span>
+            </button>
+          </div>
+        </header>
+
+        <!-- 内容标题和操作区域 -->
+        <div class="content-title-area">
+          <div class="content-title">
+            <h2 id="content-title">所有书签</h2>
+            <button class="back-btn" id="back-btn" style="display: none;">
+              <span class="icon">🔙</span>
+              <span class="text">返回上级</span>
+            </button>
+            <div class="drag-target-area" id="drag-target-area" style="display: none;">
+              <span class="drag-target-icon">📤</span>
+              <span class="drag-target-text">拖拽到此处移动到上级目录</span>
+            </div>
+            <span class="item-count" id="item-count">0 项</span>
+          </div>
+          <div class="content-actions">
+            <!-- 多选操作区域 -->
+            <div class="selection-actions" id="selection-actions" style="display: none;">
+              <button class="action-btn exit-selection-btn" id="exit-selection-btn">
+                <span class="icon">🚪</span>
+                <span class="text">退出多选</span>
+              </button>
+              <button class="action-btn selection-btn" id="select-all-btn">
+                <span class="icon">☑️</span>
+                <span class="text">全选</span>
+              </button>
+              <button class="action-btn selection-btn" id="clear-selection-btn">
+                <span class="icon">❌</span>
+                <span class="text">取消选择</span>
+              </button>
+              <button class="action-btn danger-btn" id="delete-selected-btn" disabled>
+                <span class="icon">🗑️</span>
+                <span class="text">删除选中项</span>
+                <span class="count" id="selected-count">(0)</span>
+              </button>
+            </div>
+
+            <!-- 常规操作区域 -->
+            <div class="normal-actions" id="normal-actions">
+              <button class="action-btn" id="toggle-selection-btn">
+                <span class="icon">☑️</span>
+                <span class="text">多选模式</span>
+              </button>
+              <button class="action-btn" id="add-bookmark-btn">
+                <span class="icon">�+</span>
+                <span class="text">添加书签</span>
+              </button>
+              <button class="action-btn" id="add-folder-btn">
+                <span class="icon">�+</span>
+                <span class="text">新建文件夹</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 书签内容区域 -->
+        <div class="content-body">
+          <div class="bookmark-grid" id="bookmark-container">
+            <!-- 动态生成书签内容 -->
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 右键菜单 -->
+  <div class="context-menu" id="context-menu">
+    <div class="context-item" data-action="open">
+      <span class="context-icon">🔗</span>
+      <span class="context-text">打开</span>
+    </div>
+    <div class="context-item" data-action="open-new-tab">
+      <span class="context-icon">🆕</span>
+      <span class="context-text">在新标签页中打开</span>
+    </div>
+    <div class="context-divider"></div>
+    <div class="context-item" data-action="edit">
+      <span class="context-icon">✏️</span>
+      <span class="context-text">编辑</span>
+    </div>
+    <div class="context-item" data-action="delete">
+      <span class="context-icon">🗑️</span>
+      <span class="context-text">删除</span>
+    </div>
+  </div>
+
+  <!-- 编辑对话框 -->
+  <div class="modal" id="edit-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-title">编辑书签</h3>
+        <button class="modal-close" id="modal-close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="edit-name">名称</label>
+          <input type="text" id="edit-name" class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="edit-url">网址</label>
+          <input type="url" id="edit-url" class="form-input">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="modal-cancel">取消</button>
+        <button class="btn btn-primary" id="modal-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 删除确认对话框 -->
+  <div class="modal" id="delete-confirm-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">确认删除</h3>
+        <button class="modal-close" id="delete-modal-close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="delete-warning">
+          <div class="warning-icon">⚠️</div>
+          <div class="warning-text">
+            <p id="delete-message">您确定要删除选中的项目吗？</p>
+            <div class="delete-details" id="delete-details">
+              <!-- 动态显示要删除的项目详情 -->
+            </div>
+            <p class="warning-note">此操作无法撤销。</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="delete-modal-cancel">取消</button>
+        <button class="btn btn-danger" id="delete-modal-confirm">
+          <span class="loading-spinner" id="delete-loading" style="display: none;">⏳</span>
+          <span class="delete-text">删除</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设置面板 -->
+  <div class="settings-panel" id="settings-panel">
+    <div class="settings-content">
+      <div class="settings-header">
+        <h3 class="settings-title">
+          <span class="settings-icon">⚙️</span>
+          书签管理设置
+        </h3>
+        <button class="settings-close" id="settings-close">×</button>
+      </div>
+
+      <div class="settings-body">
+        <!-- 显示设置 -->
+        <div class="settings-section">
+          <h4 class="section-title">
+            <span class="section-icon">👁️</span>
+            显示设置
+          </h4>
+          <div class="setting-item">
+            <label class="setting-label">默认视图</label>
+            <select class="setting-select" id="default-view-select">
+              <option value="grid">网格视图</option>
+              <option value="list">列表视图</option>
+            </select>
+          </div>
+          <div class="setting-item">
+            <div class="setting-toggle">
+              <input type="checkbox" id="show-favicons" checked>
+              <label for="show-favicons" class="toggle-label">显示网站图标</label>
+            </div>
+          </div>
+          <div class="setting-item">
+            <div class="setting-toggle">
+              <input type="checkbox" id="show-urls" checked>
+              <label for="show-urls" class="toggle-label">显示网址</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 数据管理 -->
+        <div class="settings-section">
+          <h4 class="section-title">
+            <span class="section-icon">💾</span>
+            数据管理
+          </h4>
+          <div class="setting-item">
+            <button class="setting-btn secondary" id="import-bookmarks-btn">
+              <span class="btn-icon">📥</span>
+              导入书签
+            </button>
+            <p class="setting-description">从HTML文件导入书签</p>
+            <input type="file" id="import-file-input" accept=".html,.htm" style="display: none;">
+          </div>
+          <div class="setting-item">
+            <button class="setting-btn primary" id="export-bookmarks-btn">
+              <span class="btn-icon">📤</span>
+              导出书签
+            </button>
+            <p class="setting-description">将书签导出为HTML文件</p>
+          </div>
+          <div class="setting-item">
+            <button class="setting-btn danger" id="clear-cache-btn">
+              <span class="btn-icon">🗑️</span>
+              清除缓存
+            </button>
+            <p class="setting-description">清除本地缓存数据</p>
+          </div>
+        </div>
+
+        <!-- 快捷键设置 -->
+        <div class="settings-section">
+          <h4 class="section-title">
+            <span class="section-icon">⌨️</span>
+            快捷键
+          </h4>
+          <div class="shortcut-list">
+            <div class="shortcut-item">
+              <span class="shortcut-desc">搜索书签</span>
+              <kbd class="shortcut-key">Ctrl + F</kbd>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc">多选模式</span>
+              <kbd class="shortcut-key">Ctrl + A</kbd>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc">删除选中</span>
+              <kbd class="shortcut-key">Delete</kbd>
+            </div>
+            <div class="shortcut-item">
+              <span class="shortcut-desc">切换视图</span>
+              <kbd class="shortcut-key">Ctrl + Shift + V</kbd>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-footer">
+        <button class="btn btn-secondary" id="settings-reset">重置设置</button>
+        <button class="btn btn-primary" id="settings-save">保存设置</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="bookmarks.js"></script>
+</body>
+</html>

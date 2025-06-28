@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickFinder AI Settings</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: white;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .logo {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 16px auto;
+      display: block;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    h1 {
+      margin: 0 0 8px 0;
+      font-size: 28px;
+      font-weight: 600;
+    }
+
+    .subtitle {
+      margin: 0;
+      opacity: 0.8;
+      font-size: 16px;
+    }
+
+    .section {
+      margin: 32px 0;
+      padding: 24px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0 0 16px 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .section-icon {
+      margin-right: 8px;
+      font-size: 20px;
+    }
+
+    .form-group {
+      margin: 16px 0;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      font-size: 14px;
+    }
+
+    .form-input, .form-select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 14px;
+      box-sizing: border-box;
+      transition: all 0.2s ease;
+    }
+
+    .form-input:focus, .form-select:focus {
+      outline: none;
+      border-color: rgba(255, 255, 255, 0.6);
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+    }
+
+    .form-input::placeholder {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .form-select option {
+      background: #333;
+      color: white;
+    }
+
+    .help-text {
+      font-size: 12px;
+      opacity: 0.7;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    .checkbox-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: all 0.2s ease;
+    }
+
+    .checkbox-item:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .checkbox-item input[type="checkbox"] {
+      margin-right: 8px;
+      transform: scale(1.2);
+    }
+
+    .checkbox-item label {
+      margin: 0;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex: 1;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #4CAF50, #45a049);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .status-message {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin: 16px 0;
+      font-size: 14px;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .status-message.show {
+      opacity: 1;
+    }
+
+    .status-success {
+      background: rgba(76, 175, 80, 0.2);
+      border: 1px solid rgba(76, 175, 80, 0.4);
+      color: #4CAF50;
+    }
+
+    .status-error {
+      background: rgba(244, 67, 54, 0.2);
+      border: 1px solid rgba(244, 67, 54, 0.4);
+      color: #f44336;
+    }
+
+    .status-info {
+      background: rgba(33, 150, 243, 0.2);
+      border: 1px solid rgba(33, 150, 243, 0.4);
+      color: #2196F3;
+    }
+
+    .model-info, .provider-info {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-top: 8px;
+      font-size: 12px;
+      opacity: 0.8;
+      line-height: 1.4;
+    }
+
+    .provider-info {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .api-key-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .api-key-container .form-input {
+      padding-right: 50px;
+    }
+
+    .toggle-password-btn {
+      position: absolute;
+      right: 12px;
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .toggle-password-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+
+    .api-key-status {
+      margin-top: 8px;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      display: none;
+    }
+
+    .api-key-status.valid {
+      background: rgba(76, 175, 80, 0.2);
+      border: 1px solid rgba(76, 175, 80, 0.4);
+      color: #4CAF50;
+      display: block;
+    }
+
+    .api-key-status.invalid {
+      background: rgba(244, 67, 54, 0.2);
+      border: 1px solid rgba(244, 67, 54, 0.4);
+      color: #f44336;
+      display: block;
+    }
+
+    .quick-setup-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn-small {
+      padding: 8px 16px;
+      font-size: 12px;
+      min-width: auto;
+    }
+
+    .provider-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 12px;
+      margin: 8px 0;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .provider-card:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .provider-card.selected {
+      background: rgba(76, 175, 80, 0.2);
+      border-color: rgba(76, 175, 80, 0.4);
+    }
+
+    .provider-card-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .provider-card-icon {
+      font-size: 20px;
+      margin-right: 8px;
+    }
+
+    .provider-card-name {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .provider-card-description {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-top: 4px;
+    }
+
+    .language-toggle {
+      text-align: center;
+      margin-top: 24px;
+    }
+
+    .language-toggle button {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s ease;
+    }
+
+    .language-toggle button:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .test-section {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .test-result {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      font-family: monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="icons/icon.png" alt="QuickFinder" class="logo">
+      <h1 data-en="QuickFinder AI Settings" data-zh="QuickFinder AI 设置">QuickFinder AI 设置</h1>
+      <p class="subtitle" data-en="Configure AI features for enhanced bookmark management" data-zh="配置AI功能以增强书签管理体验">配置AI功能以增强书签管理体验</p>
+    </div>
+
+    <!-- AI Provider Settings -->
+    <div class="section">
+      <h2 class="section-title">
+        <span class="section-icon">🤖</span>
+        <span data-en="AI Provider Configuration" data-zh="AI提供商配置">AI提供商配置</span>
+      </h2>
+
+      <div class="form-group">
+        <label class="form-label" for="ai-provider" data-en="AI Service Provider:" data-zh="AI服务提供商：">AI服务提供商：</label>
+        <select id="ai-provider" class="form-select">
+          <!-- 动态填充 -->
+        </select>
+        <div id="provider-info" class="provider-info"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="ai-model" data-en="AI Model:" data-zh="AI模型：">AI模型：</label>
+        <select id="ai-model" class="form-select">
+          <!-- 动态填充 -->
+        </select>
+        <div id="model-info" class="model-info"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="api-key" data-en="API Key:" data-zh="API密钥：">API密钥：</label>
+        <div class="api-key-container">
+          <input
+            type="password"
+            id="api-key"
+            class="form-input"
+            placeholder="请输入您的API密钥..."
+            data-placeholder-en="Enter your API key..."
+            data-placeholder-zh="请输入您的API密钥..."
+          >
+          <button type="button" id="toggle-api-key" class="toggle-password-btn" title="显示/隐藏API密钥">
+            👁️
+          </button>
+        </div>
+        <div class="help-text" data-en="Your API key is stored locally and encrypted. It's only used for AI requests and never shared with third parties." data-zh="您的API密钥将加密存储在本地，仅用于AI请求，绝不会与第三方分享。">
+          🔒 您的API密钥将加密存储在本地，仅用于AI请求，绝不会与第三方分享。
+        </div>
+        <div class="api-key-status" id="api-key-status"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" data-en="Quick Setup:" data-zh="快速设置：">快速设置：</label>
+        <div class="quick-setup-buttons">
+          <button type="button" class="btn btn-secondary btn-small" id="setup-free" data-en="Free Options" data-zh="免费选项">
+            🆓 免费选项
+          </button>
+          <button type="button" class="btn btn-secondary btn-small" id="setup-premium" data-en="Premium Options" data-zh="付费选项">
+            💎 付费选项
+          </button>
+          <button type="button" class="btn btn-secondary btn-small" id="setup-chinese" data-en="Chinese Providers" data-zh="国产模型">
+            🇨🇳 国产模型
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Features Settings -->
+    <div class="section">
+      <h2 class="section-title">
+        <span class="section-icon">✨</span>
+        <span data-en="AI Features" data-zh="AI功能">AI功能</span>
+      </h2>
+      
+      <div class="form-group">
+        <label class="form-label" data-en="Enable AI Features:" data-zh="启用AI功能：">启用AI功能：</label>
+        <div class="checkbox-group">
+          <div class="checkbox-item">
+            <input type="checkbox" id="feature-smart-search" value="smart-search">
+            <label for="feature-smart-search" data-en="Smart Search" data-zh="智能搜索">智能搜索</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="feature-auto-categorize" value="auto-categorize">
+            <label for="feature-auto-categorize" data-en="Auto Categorize" data-zh="自动分类">自动分类</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="feature-summarize" value="summarize">
+            <label for="feature-summarize" data-en="Content Summary" data-zh="内容摘要">内容摘要</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="feature-recommendations" value="recommendations">
+            <label for="feature-recommendations" data-en="Recommendations" data-zh="智能推荐">智能推荐</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="feature-cleanup" value="cleanup">
+            <label for="feature-cleanup" data-en="Smart Cleanup" data-zh="智能清理">智能清理</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="feature-tagging" value="tagging">
+            <label for="feature-tagging" data-en="Auto Tagging" data-zh="自动标签">自动标签</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Test Section -->
+    <div class="section test-section">
+      <h2 class="section-title">
+        <span class="section-icon">🧪</span>
+        <span data-en="Test AI Connection" data-zh="测试AI连接">测试AI连接</span>
+      </h2>
+      
+      <div class="form-group">
+        <button class="btn btn-secondary" id="test-connection" data-en="Test Connection" data-zh="测试连接">测试连接</button>
+        <div id="test-result" class="test-result" style="display: none;"></div>
+      </div>
+    </div>
+
+    <div class="status-message" id="status-message"></div>
+
+    <div class="button-group">
+      <button class="btn btn-secondary" id="reset-btn" data-en="Reset to Default" data-zh="重置为默认">重置为默认</button>
+      <button class="btn btn-primary" id="save-btn" data-en="Save Settings" data-zh="保存设置">保存设置</button>
+    </div>
+
+    <div class="language-toggle">
+      <button id="lang-toggle">English</button>
+    </div>
+  </div>
+
+  <script src="ai-service.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
+

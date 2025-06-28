@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>深度HTML结构分析</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            backdrop-filter: blur(10px);
+        }
+
+        .test-button {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.3);
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 11px;
+            white-space: pre-wrap;
+            max-height: 600px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+        }
+
+        .result.success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 2px solid rgba(34, 197, 94, 0.6);
+        }
+
+        .result.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid rgba(239, 68, 68, 0.6);
+        }
+
+        .result.info {
+            background: rgba(59, 130, 246, 0.2);
+            border: 2px solid rgba(59, 130, 246, 0.6);
+        }
+
+        .file-input {
+            margin: 10px 0;
+            padding: 10px;
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .dom-tree {
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            line-height: 1.2;
+        }
+
+        .dom-level-0 { margin-left: 0px; color: #ff6b6b; }
+        .dom-level-1 { margin-left: 20px; color: #4ecdc4; }
+        .dom-level-2 { margin-left: 40px; color: #45b7d1; }
+        .dom-level-3 { margin-left: 60px; color: #96ceb4; }
+        .dom-level-4 { margin-left: 80px; color: #feca57; }
+        .dom-level-5 { margin-left: 100px; color: #ff9ff3; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔬 深度HTML结构分析</h1>
+        <p>分析书签HTML的真实DOM结构，找出路径提取失败的根本原因</p>
+    </div>
+
+    <div class="test-section">
+        <h3>📁 HTML结构深度分析</h3>
+        <div class="file-input">
+            <input type="file" id="bookmark-file" accept=".html" onchange="analyzeHTMLStructure(event)">
+            <p>选择你的 bookmarks_2025-06-27.html 文件</p>
+        </div>
+        <button class="test-button" onclick="analyzeKnownStructure()">分析已知结构</button>
+        <div id="structure-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🎯 DOM遍历路径分析</h3>
+        <button class="test-button" onclick="analyzeDOMTraversal()">分析DOM遍历路径</button>
+        <div id="traversal-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🔧 新算法测试</h3>
+        <button class="test-button" onclick="testNewAlgorithm()">测试新路径提取算法</button>
+        <div id="algorithm-result" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        let globalDoc = null;
+
+        // 分析HTML结构
+        async function analyzeHTMLStructure(event) {
+            const resultDiv = document.getElementById('structure-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '🔄 分析HTML结构...';
+            resultDiv.className = 'result info';
+
+            try {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const content = await readFileContent(file);
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(content, 'text/html');
+                globalDoc = doc;
+
+                let analysis = `HTML结构深度分析\n`;
+                analysis += `==================\n\n`;
+                analysis += `文件: ${file.name}\n`;
+                analysis += `大小: ${file.size} 字节\n\n`;
+
+                // 分析根级元素
+                const body = doc.body || doc.documentElement;
+                analysis += `根元素分析:\n`;
+                analysis += `- 根元素: ${body.tagName}\n`;
+                analysis += `- 直接子元素数量: ${body.children.length}\n\n`;
+
+                // 分析DL结构
+                const allDLs = doc.querySelectorAll('dl');
+                const allDTs = doc.querySelectorAll('dt');
+                const allH3s = doc.querySelectorAll('h3');
+                const allLinks = doc.querySelectorAll('a[href]');
+
+                analysis += `元素统计:\n`;
+                analysis += `- DL元素: ${allDLs.length} 个\n`;
+                analysis += `- DT元素: ${allDTs.length} 个\n`;
+                analysis += `- H3元素: ${allH3s.length} 个\n`;
+                analysis += `- 链接元素: ${allLinks.length} 个\n\n`;
+
+                // 分析前5个链接的DOM路径
+                analysis += `前5个链接的DOM路径分析:\n`;
+                analysis += `${'='.repeat(50)}\n`;
+
+                const links = Array.from(allLinks).filter(link => 
+                    link.href && link.href.startsWith('http')
+                ).slice(0, 5);
+
+                links.forEach((link, index) => {
+                    analysis += `\n${index + 1}. 链接: "${link.textContent.trim()}"\n`;
+                    analysis += `   URL: ${link.href}\n`;
+                    analysis += `   DOM路径:\n`;
+                    
+                    // 分析完整的DOM路径
+                    const path = [];
+                    let current = link;
+                    let level = 0;
+                    
+                    while (current && current !== doc.documentElement && level < 10) {
+                        const tagInfo = `${current.tagName}${current.id ? '#' + current.id : ''}${current.className ? '.' + current.className.split(' ').join('.') : ''}`;
+                        path.unshift(`${'  '.repeat(level)}${tagInfo}`);
+                        
+                        // 分析兄弟元素
+                        if (current.tagName === 'DT') {
+                            analysis += `     DT元素分析:\n`;
+                            analysis += `       - 父元素: ${current.parentElement ? current.parentElement.tagName : 'null'}\n`;
+                            analysis += `       - 前一个兄弟: ${current.previousElementSibling ? current.previousElementSibling.tagName : 'null'}\n`;
+                            analysis += `       - 后一个兄弟: ${current.nextElementSibling ? current.nextElementSibling.tagName : 'null'}\n`;
+                        }
+                        
+                        if (current.tagName === 'DL') {
+                            analysis += `     DL元素分析:\n`;
+                            analysis += `       - 父元素: ${current.parentElement ? current.parentElement.tagName : 'null'}\n`;
+                            analysis += `       - 前一个兄弟: ${current.previousElementSibling ? current.previousElementSibling.tagName : 'null'}\n`;
+                            if (current.previousElementSibling && current.previousElementSibling.tagName === 'DT') {
+                                const h3 = current.previousElementSibling.querySelector('h3');
+                                if (h3) {
+                                    analysis += `       - 前一个DT的H3: "${h3.textContent.trim()}"\n`;
+                                }
+                            }
+                        }
+                        
+                        current = current.parentElement;
+                        level++;
+                    }
+                    
+                    analysis += `   完整路径:\n${path.join('\n')}\n`;
+                });
+
+                resultDiv.className = 'result info';
+                resultDiv.innerHTML = analysis;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 分析失败: ${error.message}\n\nStack trace:\n${error.stack}`;
+            }
+        }
+
+        // 分析已知结构
+        function analyzeKnownStructure() {
+            const resultDiv = document.getElementById('structure-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '🔄 分析已知结构...';
+            resultDiv.className = 'result info';
+
+            // 使用标准的Netscape书签格式
+            const testHTML = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1>Bookmarks</H1>
+<DL><p>
+<DT><H3>Untitled Folder</H3>
+<DL><p>
+  <DT><H3>收藏夹栏</H3>
+  <DL><p>
+    <DT><H3>work-assist</H3>
+    <DL><p>
+      <DT><A HREF="https://aflowmind.com/app/mindmap/6E1-YDYVBAN4ORDO7PSH">AflowMind: The AI Mind Mapping Tool</A>
+      <DT><A HREF="https://app.amymind.com/mindmap/new">AmyMind</A>
+    </DL><p>
+    <DT><H3>AI-Chat</H3>
+    <DL><p>
+      <DT><A HREF="https://chat.openai.com/chat">ChatGPT</A>
+      <DT><A HREF="https://gemini.google.com/u/1/app/74a659aed20881f2">Gemini Advanced</A>
+    </DL><p>
+    <DT><A HREF="https://github.com/">GitHub (根级别)</A>
+  </DL><p>
+</DL><p>
+</DL><p>`;
+
+            try {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(testHTML, 'text/html');
+                globalDoc = doc;
+
+                let analysis = `已知结构分析\n`;
+                analysis += `==============\n\n`;
+
+                // 分析第一个链接的详细路径
+                const aflowmindLink = doc.querySelector('a[href*="aflowmind"]');
+                if (aflowmindLink) {
+                    analysis += `AflowMind链接的详细DOM分析:\n`;
+                    analysis += `链接文本: "${aflowmindLink.textContent.trim()}"\n\n`;
+
+                    let current = aflowmindLink;
+                    let step = 1;
+
+                    while (current && current !== doc.documentElement) {
+                        analysis += `步骤 ${step}: ${current.tagName}\n`;
+                        
+                        if (current.tagName === 'A') {
+                            analysis += `  - 这是目标链接\n`;
+                        } else if (current.tagName === 'DT') {
+                            analysis += `  - 这是包含链接的DT\n`;
+                            analysis += `  - 父元素: ${current.parentElement ? current.parentElement.tagName : 'null'}\n`;
+                        } else if (current.tagName === 'DL') {
+                            analysis += `  - 这是包含DT的DL\n`;
+                            analysis += `  - 前一个兄弟: ${current.previousElementSibling ? current.previousElementSibling.tagName : 'null'}\n`;
+                            
+                            if (current.previousElementSibling && current.previousElementSibling.tagName === 'DT') {
+                                const h3 = current.previousElementSibling.querySelector('h3');
+                                if (h3) {
+                                    analysis += `  - 前一个DT包含H3: "${h3.textContent.trim()}"\n`;
+                                } else {
+                                    analysis += `  - 前一个DT不包含H3\n`;
+                                }
+                            }
+                        }
+                        
+                        current = current.parentElement;
+                        step++;
+                        
+                        if (step > 10) break; // 防止无限循环
+                    }
+                }
+
+                resultDiv.className = 'result info';
+                resultDiv.innerHTML = analysis;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 分析失败: ${error.message}`;
+            }
+        }
+
+        // 分析DOM遍历路径
+        function analyzeDOMTraversal() {
+            const resultDiv = document.getElementById('traversal-result');
+            resultDiv.style.display = 'block';
+
+            if (!globalDoc) {
+                resultDiv.innerHTML = '❌ 请先选择文件进行分析';
+                resultDiv.className = 'result error';
+                return;
+            }
+
+            resultDiv.innerHTML = '🔄 分析DOM遍历路径...';
+            resultDiv.className = 'result info';
+
+            try {
+                let analysis = `DOM遍历路径分析\n`;
+                analysis += `================\n\n`;
+
+                const links = Array.from(globalDoc.querySelectorAll('a[href]')).filter(link => 
+                    link.href && link.href.startsWith('http')
+                ).slice(0, 3);
+
+                links.forEach((link, index) => {
+                    analysis += `${index + 1}. 链接: "${link.textContent.trim()}"\n`;
+                    analysis += `遍历路径:\n`;
+
+                    // 新的遍历算法
+                    const path = getBookmarkPathNew(link);
+                    analysis += `提取的路径: [${path.join(' > ')}]\n`;
+
+                    // 详细的遍历步骤
+                    analysis += `详细遍历步骤:\n`;
+                    let current = link.closest('dt');
+                    let stepNum = 1;
+
+                    while (current && stepNum <= 10) {
+                        analysis += `  步骤${stepNum}: 当前元素 ${current.tagName}\n`;
+                        
+                        const parentDL = current.parentElement;
+                        if (parentDL && parentDL.tagName === 'DL') {
+                            analysis += `    - 父DL找到\n`;
+                            
+                            let folderDT = parentDL.previousElementSibling;
+                            while (folderDT && folderDT.nodeType !== Node.ELEMENT_NODE) {
+                                folderDT = folderDT.previousSibling;
+                            }
+                            
+                            if (folderDT && folderDT.tagName === 'DT') {
+                                analysis += `    - 前一个DT找到\n`;
+                                const folderH3 = folderDT.querySelector('h3');
+                                if (folderH3) {
+                                    const folderName = folderH3.textContent.trim();
+                                    analysis += `    - H3找到: "${folderName}"\n`;
+                                } else {
+                                    analysis += `    - H3未找到\n`;
+                                }
+                            } else {
+                                analysis += `    - 前一个DT未找到\n`;
+                            }
+                            
+                            current = folderDT;
+                        } else {
+                            analysis += `    - 父DL未找到，停止遍历\n`;
+                            break;
+                        }
+                        
+                        stepNum++;
+                    }
+                    
+                    analysis += `\n`;
+                });
+
+                resultDiv.className = 'result info';
+                resultDiv.innerHTML = analysis;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 遍历分析失败: ${error.message}`;
+            }
+        }
+
+        // 测试新算法
+        function testNewAlgorithm() {
+            const resultDiv = document.getElementById('algorithm-result');
+            resultDiv.style.display = 'block';
+
+            if (!globalDoc) {
+                resultDiv.innerHTML = '❌ 请先选择文件进行分析';
+                resultDiv.className = 'result error';
+                return;
+            }
+
+            resultDiv.innerHTML = '🔄 测试新算法...';
+            resultDiv.className = 'result info';
+
+            try {
+                let analysis = `新算法测试结果\n`;
+                analysis += `================\n\n`;
+
+                const links = Array.from(globalDoc.querySelectorAll('a[href]')).filter(link => 
+                    link.href && link.href.startsWith('http')
+                ).slice(0, 10);
+
+                analysis += `测试 ${links.length} 个链接:\n\n`;
+
+                links.forEach((link, index) => {
+                    const title = link.textContent.trim();
+                    const path = getBookmarkPathNew(link);
+                    
+                    analysis += `${index + 1}. ${title}\n`;
+                    analysis += `   路径: [${path.join(' > ')}]\n`;
+                    
+                    if (path.length > 0) {
+                        analysis += `   ✅ 成功提取路径\n`;
+                    } else {
+                        analysis += `   ❌ 路径提取失败\n`;
+                    }
+                    analysis += `\n`;
+                });
+
+                // 统计结果
+                const successCount = links.filter(link => getBookmarkPathNew(link).length > 0).length;
+                const totalCount = links.length;
+
+                analysis += `统计结果:\n`;
+                analysis += `- 成功提取: ${successCount}/${totalCount}\n`;
+                analysis += `- 成功率: ${((successCount / totalCount) * 100).toFixed(1)}%\n`;
+
+                if (successCount > 0) {
+                    analysis += `\n✅ 新算法工作正常！`;
+                    resultDiv.className = 'result success';
+                } else {
+                    analysis += `\n❌ 新算法仍需改进。`;
+                    resultDiv.className = 'result error';
+                }
+
+                resultDiv.innerHTML = analysis;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 算法测试失败: ${error.message}`;
+            }
+        }
+
+        // 新的路径提取算法
+        function getBookmarkPathNew(linkElement) {
+            const path = [];
+            let current = linkElement.closest('dt');
+            
+            while (current) {
+                const parentDL = current.parentElement;
+                
+                if (parentDL && parentDL.tagName === 'DL') {
+                    // 查找这个DL对应的文件夹DT
+                    let folderDT = parentDL.previousElementSibling;
+                    
+                    // 跳过空白文本节点
+                    while (folderDT && folderDT.nodeType !== Node.ELEMENT_NODE) {
+                        folderDT = folderDT.previousSibling;
+                    }
+                    
+                    if (folderDT && folderDT.tagName === 'DT') {
+                        const folderH3 = folderDT.querySelector('h3');
+                        if (folderH3) {
+                            const folderName = folderH3.textContent.trim();
+                            if (folderName !== 'Untitled Folder') {
+                                path.unshift(folderName);
+                            }
+                        }
+                    }
+                    
+                    // 继续向上查找
+                    current = folderDT;
+                } else {
+                    // 没有更多父级DL，停止查找
+                    break;
+                }
+            }
+            
+            return path;
+        }
+
+        // 辅助函数
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(new Error('文件读取失败'));
+                reader.readAsText(file, 'UTF-8');
+            });
+        }
+    </script>
+</body>
+</html>

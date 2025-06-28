@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML结构诊断工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            backdrop-filter: blur(10px);
+        }
+
+        .test-button {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.3);
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 11px;
+            white-space: pre-wrap;
+            max-height: 600px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+        }
+
+        .result.success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 2px solid rgba(34, 197, 94, 0.6);
+        }
+
+        .result.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid rgba(239, 68, 68, 0.6);
+        }
+
+        .result.info {
+            background: rgba(59, 130, 246, 0.2);
+            border: 2px solid rgba(59, 130, 246, 0.6);
+        }
+
+        .file-input {
+            margin: 10px 0;
+            padding: 10px;
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔬 HTML结构诊断工具</h1>
+        <p>诊断为什么路径提取失败，检查HTML结构问题</p>
+    </div>
+
+    <div class="test-section">
+        <h3>📁 原始HTML vs 解析后HTML对比</h3>
+        <div class="file-input">
+            <input type="file" id="bookmark-file" accept=".html" onchange="diagnoseHTMLStructure(event)">
+            <p>选择你的书签文件</p>
+        </div>
+        <button class="test-button" onclick="testStandardFormat()">测试标准格式</button>
+        <div id="diagnosis-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🔧 修复建议</h3>
+        <button class="test-button" onclick="generateFixedHTML()">生成修复后的HTML</button>
+        <div id="fix-result" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        let globalFileContent = null;
+
+        // 诊断HTML结构
+        async function diagnoseHTMLStructure(event) {
+            const resultDiv = document.getElementById('diagnosis-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '🔄 诊断HTML结构...';
+            resultDiv.className = 'result info';
+
+            try {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const content = await readFileContent(file);
+                globalFileContent = content;
+
+                let diagnosis = `HTML结构诊断报告\n`;
+                diagnosis += `==================\n\n`;
+                diagnosis += `文件: ${file.name}\n`;
+                diagnosis += `大小: ${file.size} 字节\n\n`;
+
+                // 显示原始HTML的前几行
+                const lines = content.split('\n');
+                diagnosis += `原始HTML前20行:\n`;
+                diagnosis += `${'='.repeat(30)}\n`;
+                lines.slice(0, 20).forEach((line, index) => {
+                    diagnosis += `${(index + 1).toString().padStart(3, ' ')}: ${line}\n`;
+                });
+
+                // 解析HTML
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(content, 'text/html');
+
+                diagnosis += `\n解析后DOM结构分析:\n`;
+                diagnosis += `${'='.repeat(30)}\n`;
+
+                // 检查第一个书签的结构
+                const firstLink = doc.querySelector('a[href^="http"]');
+                if (firstLink) {
+                    diagnosis += `第一个书签: "${firstLink.textContent.trim()}"\n`;
+                    diagnosis += `URL: ${firstLink.href}\n\n`;
+
+                    // 分析DOM路径
+                    diagnosis += `DOM路径分析:\n`;
+                    let current = firstLink;
+                    let level = 0;
+                    while (current && level < 10) {
+                        const tagName = current.tagName;
+                        const text = current.textContent ? current.textContent.trim().substring(0, 30) : '';
+                        diagnosis += `${'  '.repeat(level)}${tagName}: "${text}"\n`;
+                        
+                        if (tagName === 'DT') {
+                            const parent = current.parentElement;
+                            diagnosis += `${'  '.repeat(level)}  父元素: ${parent ? parent.tagName : 'null'}\n`;
+                            
+                            if (parent && parent.tagName === 'DL') {
+                                const prevSibling = parent.previousElementSibling;
+                                diagnosis += `${'  '.repeat(level)}  DL的前一个兄弟: ${prevSibling ? prevSibling.tagName : 'null'}\n`;
+                                
+                                if (prevSibling) {
+                                    diagnosis += `${'  '.repeat(level)}  兄弟内容: "${prevSibling.textContent ? prevSibling.textContent.trim().substring(0, 20) : ''}"\n`;
+                                    
+                                    // 这里是关键！检查是否是H3直接作为兄弟，还是DT包含H3
+                                    if (prevSibling.tagName === 'H3') {
+                                        diagnosis += `${'  '.repeat(level)}  ❌ 问题发现: H3直接作为DL的兄弟！\n`;
+                                        diagnosis += `${'  '.repeat(level)}  ❌ 标准格式应该是: DT > H3\n`;
+                                    } else if (prevSibling.tagName === 'DT') {
+                                        const h3 = prevSibling.querySelector('h3');
+                                        if (h3) {
+                                            diagnosis += `${'  '.repeat(level)}  ✅ 正确: DT包含H3 "${h3.textContent.trim()}"\n`;
+                                        } else {
+                                            diagnosis += `${'  '.repeat(level)}  ❌ 问题: DT不包含H3\n`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        current = current.parentElement;
+                        level++;
+                    }
+                }
+
+                // 检查所有H3元素的位置
+                diagnosis += `\n所有H3元素位置检查:\n`;
+                diagnosis += `${'='.repeat(30)}\n`;
+                const allH3s = doc.querySelectorAll('h3');
+                allH3s.forEach((h3, index) => {
+                    const folderName = h3.textContent.trim();
+                    const parent = h3.parentElement;
+                    const grandparent = parent ? parent.parentElement : null;
+                    
+                    diagnosis += `${index + 1}. "${folderName}"\n`;
+                    diagnosis += `   直接父元素: ${parent ? parent.tagName : 'null'}\n`;
+                    diagnosis += `   祖父元素: ${grandparent ? grandparent.tagName : 'null'}\n`;
+                    
+                    if (parent && parent.tagName === 'DT') {
+                        const nextSibling = parent.nextElementSibling;
+                        diagnosis += `   DT的下一个兄弟: ${nextSibling ? nextSibling.tagName : 'null'}\n`;
+                        if (nextSibling && nextSibling.tagName === 'DL') {
+                            const linksInFolder = nextSibling.querySelectorAll('a[href^="http"]');
+                            diagnosis += `   ✅ 标准结构，包含 ${linksInFolder.length} 个书签\n`;
+                        } else {
+                            diagnosis += `   ❌ 非标准结构\n`;
+                        }
+                    } else {
+                        diagnosis += `   ❌ H3不在DT中\n`;
+                    }
+                    diagnosis += `\n`;
+                });
+
+                resultDiv.className = 'result info';
+                resultDiv.innerHTML = diagnosis;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 诊断失败: ${error.message}\n\nStack trace:\n${error.stack}`;
+            }
+        }
+
+        // 测试标准格式
+        function testStandardFormat() {
+            const resultDiv = document.getElementById('diagnosis-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '🔄 测试标准格式...';
+            resultDiv.className = 'result info';
+
+            // 标准Netscape格式
+            const standardHTML = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1>Bookmarks</H1>
+<DL><p>
+<DT><H3>Untitled Folder</H3>
+<DL><p>
+  <DT><H3>收藏夹栏</H3>
+  <DL><p>
+    <DT><H3>work</H3>
+    <DL><p>
+      <DT><A HREF="https://10.132.3.199/task/statistic">Xray</A>
+      <DT><A HREF="http://10.132.3.208:9000/projects">sonarqube</A>
+    </DL><p>
+    <DT><H3>AI-Chat</H3>
+    <DL><p>
+      <DT><A HREF="https://chat.openai.com/chat">ChatGPT</A>
+    </DL><p>
+  </DL><p>
+</DL><p>
+</DL><p>`;
+
+            try {
+                let analysis = `标准格式测试\n`;
+                analysis += `==============\n\n`;
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(standardHTML, 'text/html');
+
+                // 测试路径提取
+                const xrayLink = doc.querySelector('a[href*="Xray"]');
+                const chatgptLink = doc.querySelector('a[href*="chat.openai"]');
+
+                if (xrayLink) {
+                    const path = getBookmarkPathFixed(xrayLink);
+                    analysis += `Xray书签路径: [${path.join(' > ')}]\n`;
+                    analysis += `期望路径: [收藏夹栏, work]\n`;
+                    analysis += `结果: ${JSON.stringify(path) === JSON.stringify(['收藏夹栏', 'work']) ? '✅ 正确' : '❌ 错误'}\n\n`;
+                }
+
+                if (chatgptLink) {
+                    const path = getBookmarkPathFixed(chatgptLink);
+                    analysis += `ChatGPT书签路径: [${path.join(' > ')}]\n`;
+                    analysis += `期望路径: [收藏夹栏, AI-Chat]\n`;
+                    analysis += `结果: ${JSON.stringify(path) === JSON.stringify(['收藏夹栏', 'AI-Chat']) ? '✅ 正确' : '❌ 错误'}\n\n`;
+                }
+
+                // 检查文件夹结构
+                analysis += `文件夹结构检查:\n`;
+                const allH3s = doc.querySelectorAll('h3');
+                allH3s.forEach((h3, index) => {
+                    const folderName = h3.textContent.trim();
+                    if (folderName !== 'Untitled Folder') {
+                        const dt = h3.closest('dt');
+                        const nextSibling = dt ? dt.nextElementSibling : null;
+                        const isFolder = nextSibling && nextSibling.tagName.toLowerCase() === 'dl';
+                        
+                        analysis += `${folderName}: ${isFolder ? '✅ 正确的文件夹结构' : '❌ 错误的结构'}\n`;
+                    }
+                });
+
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = analysis;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 测试失败: ${error.message}`;
+            }
+        }
+
+        // 生成修复后的HTML
+        function generateFixedHTML() {
+            const resultDiv = document.getElementById('fix-result');
+            resultDiv.style.display = 'block';
+
+            if (!globalFileContent) {
+                resultDiv.innerHTML = '❌ 请先选择文件进行诊断';
+                resultDiv.className = 'result error';
+                return;
+            }
+
+            resultDiv.innerHTML = '🔄 生成修复后的HTML...';
+            resultDiv.className = 'result info';
+
+            try {
+                let analysis = `修复建议\n`;
+                analysis += `========\n\n`;
+
+                // 检查当前QuickFinder的导出格式
+                analysis += `当前QuickFinder导出格式检查:\n`;
+                analysis += `generateBookmarkHTML函数生成的格式是标准的:\n`;
+                analysis += `- ✅ DOCTYPE NETSCAPE-Bookmark-file-1\n`;
+                analysis += `- ✅ 正确的META标签\n`;
+                analysis += `- ✅ DT > H3 文件夹结构\n`;
+                analysis += `- ✅ DT > A 书签结构\n`;
+                analysis += `- ✅ 正确的DL嵌套\n\n`;
+
+                analysis += `问题可能出现在:\n`;
+                analysis += `1. 浏览器导出的HTML格式不标准\n`;
+                analysis += `2. 文件编码问题\n`;
+                analysis += `3. DOM解析器处理问题\n\n`;
+
+                analysis += `建议解决方案:\n`;
+                analysis += `1. 使用QuickFinder自带的导出功能重新导出\n`;
+                analysis += `2. 检查文件编码是否为UTF-8\n`;
+                analysis += `3. 如果仍有问题，可能需要修改路径提取算法\n\n`;
+
+                // 提供一个修复后的路径提取算法
+                analysis += `修复后的路径提取算法:\n`;
+                analysis += `========================\n`;
+                analysis += `function getBookmarkPathRobust(linkElement) {\n`;
+                analysis += `  const path = [];\n`;
+                analysis += `  let current = linkElement;\n`;
+                analysis += `  \n`;
+                analysis += `  while (current && current.parentElement) {\n`;
+                analysis += `    current = current.parentElement;\n`;
+                analysis += `    \n`;
+                analysis += `    // 查找包含H3的元素\n`;
+                analysis += `    if (current.tagName === 'DL') {\n`;
+                analysis += `      let folderElement = current.previousElementSibling;\n`;
+                analysis += `      \n`;
+                analysis += `      // 跳过文本节点\n`;
+                analysis += `      while (folderElement && folderElement.nodeType !== 1) {\n`;
+                analysis += `        folderElement = folderElement.previousSibling;\n`;
+                analysis += `      }\n`;
+                analysis += `      \n`;
+                analysis += `      if (folderElement) {\n`;
+                analysis += `        let h3 = null;\n`;
+                analysis += `        \n`;
+                analysis += `        // 检查是否直接是H3\n`;
+                analysis += `        if (folderElement.tagName === 'H3') {\n`;
+                analysis += `          h3 = folderElement;\n`;
+                analysis += `        }\n`;
+                analysis += `        // 检查是否在DT中包含H3\n`;
+                analysis += `        else if (folderElement.tagName === 'DT') {\n`;
+                analysis += `          h3 = folderElement.querySelector('h3');\n`;
+                analysis += `        }\n`;
+                analysis += `        \n`;
+                analysis += `        if (h3) {\n`;
+                analysis += `          const folderName = h3.textContent.trim();\n`;
+                analysis += `          if (folderName && folderName !== 'Untitled Folder') {\n`;
+                analysis += `            path.unshift(folderName);\n`;
+                analysis += `          }\n`;
+                analysis += `        }\n`;
+                analysis += `      }\n`;
+                analysis += `    }\n`;
+                analysis += `  }\n`;
+                analysis += `  \n`;
+                analysis += `  return path;\n`;
+                analysis += `}\n`;
+
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = analysis;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 生成失败: ${error.message}`;
+            }
+        }
+
+        // 修复后的路径提取函数
+        function getBookmarkPathFixed(linkElement) {
+            const path = [];
+            let current = linkElement;
+            
+            while (current && current.parentElement) {
+                current = current.parentElement;
+                
+                if (current.tagName === 'DL') {
+                    let folderElement = current.previousElementSibling;
+                    
+                    while (folderElement && folderElement.nodeType !== 1) {
+                        folderElement = folderElement.previousSibling;
+                    }
+                    
+                    if (folderElement) {
+                        let h3 = null;
+                        
+                        if (folderElement.tagName === 'H3') {
+                            h3 = folderElement;
+                        } else if (folderElement.tagName === 'DT') {
+                            h3 = folderElement.querySelector('h3');
+                        }
+                        
+                        if (h3) {
+                            const folderName = h3.textContent.trim();
+                            if (folderName && folderName !== 'Untitled Folder') {
+                                path.unshift(folderName);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return path;
+        }
+
+        // 辅助函数
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(new Error('文件读取失败'));
+                reader.readAsText(file, 'UTF-8');
+            });
+        }
+    </script>
+</body>
+</html>
