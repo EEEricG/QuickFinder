@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最终健壮性测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            backdrop-filter: blur(10px);
+        }
+
+        .test-button {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.3);
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+        }
+
+        .result.success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 2px solid rgba(34, 197, 94, 0.6);
+        }
+
+        .result.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 2px solid rgba(239, 68, 68, 0.6);
+        }
+
+        .result.info {
+            background: rgba(59, 130, 246, 0.2);
+            border: 2px solid rgba(59, 130, 246, 0.6);
+        }
+
+        .file-input {
+            margin: 10px 0;
+            padding: 10px;
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 最终健壮性测试</h1>
+        <p>测试兼容多种HTML结构的路径提取算法</p>
+    </div>
+
+    <div class="test-section">
+        <h3>📁 健壮性测试</h3>
+        <div class="file-input">
+            <input type="file" id="bookmark-file" accept=".html" onchange="testRobustAlgorithm(event)">
+            <p>选择你的书签文件</p>
+        </div>
+        <button class="test-button" onclick="testBothFormats()">测试两种格式</button>
+        <div id="test-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🔧 格式诊断</h3>
+        <button class="test-button" onclick="diagnoseFormat()">诊断HTML格式</button>
+        <div id="diagnosis-result" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        let globalDoc = null;
+
+        // 测试健壮算法
+        async function testRobustAlgorithm(event) {
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '🔄 测试健壮算法...';
+            resultDiv.className = 'result info';
+
+            try {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const content = await readFileContent(file);
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(content, 'text/html');
+                globalDoc = doc;
+
+                const bookmarks = parseBookmarkHTMLRobust(content);
+
+                let analysis = `健壮算法测试结果\n`;
+                analysis += `==================\n\n`;
+                analysis += `文件: ${file.name}\n`;
+                analysis += `总项目: ${bookmarks.length}\n`;
+
+                const bookmarkItems = bookmarks.filter(b => b.type === 'bookmark');
+                const folderItems = bookmarks.filter(b => b.type === 'folder');
+
+                analysis += `书签: ${bookmarkItems.length}\n`;
+                analysis += `文件夹: ${folderItems.length}\n\n`;
+
+                // 分析路径分布
+                const pathDistribution = {};
+                bookmarkItems.forEach(bookmark => {
+                    const pathKey = bookmark.path.length > 0 ? bookmark.path.join(' > ') : 'ROOT';
+                    pathDistribution[pathKey] = (pathDistribution[pathKey] || 0) + 1;
+                });
+
+                analysis += `路径分布 (前15个):\n`;
+                const sortedPaths = Object.entries(pathDistribution)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 15);
+                
+                sortedPaths.forEach(([path, count]) => {
+                    analysis += `- "${path}": ${count} 个书签\n`;
+                });
+
+                // 计算成功率
+                const rootCount = pathDistribution['ROOT'] || 0;
+                const successRate = ((bookmarkItems.length - rootCount) / bookmarkItems.length) * 100;
+
+                analysis += `\n健壮算法效果:\n`;
+                analysis += `- 根目录书签: ${rootCount}/${bookmarkItems.length}\n`;
+                analysis += `- 有路径的书签: ${bookmarkItems.length - rootCount}/${bookmarkItems.length}\n`;
+                analysis += `- 路径提取成功率: ${successRate.toFixed(1)}%\n`;
+
+                if (successRate >= 90) {
+                    analysis += `\n🎉 健壮算法非常成功！`;
+                    resultDiv.className = 'result success';
+                } else if (successRate >= 70) {
+                    analysis += `\n✅ 健壮算法成功！`;
+                    resultDiv.className = 'result success';
+                } else if (successRate >= 30) {
+                    analysis += `\n⚠️ 健壮算法有一定效果。`;
+                    resultDiv.className = 'result info';
+                } else {
+                    analysis += `\n❌ 健壮算法效果仍不理想。`;
+                    resultDiv.className = 'result error';
+                }
+
+                // 显示成功案例
+                const successCases = bookmarkItems.filter(b => b.path.length > 0).slice(0, 10);
+                if (successCases.length > 0) {
+                    analysis += `\n\n成功案例 (前10个):\n`;
+                    successCases.forEach((bookmark, index) => {
+                        analysis += `${index + 1}. ${bookmark.title}\n`;
+                        analysis += `   路径: [${bookmark.path.join(' > ')}]\n`;
+                    });
+                }
+
+                resultDiv.innerHTML = analysis;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 测试失败: ${error.message}\n\nStack trace:\n${error.stack}`;
+            }
+        }
+
+        // 测试两种格式
+        function testBothFormats() {
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '🔄 测试两种格式...';
+            resultDiv.className = 'result info';
+
+            try {
+                let analysis = `两种格式对比测试\n`;
+                analysis += `==================\n\n`;
+
+                // 标准格式
+                const standardHTML = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1>Bookmarks</H1>
+<DL><p>
+<DT><H3>收藏夹栏</H3>
+<DL><p>
+  <DT><H3>work</H3>
+  <DL><p>
+    <DT><A HREF="https://10.132.3.199/task/statistic">Xray</A>
+  </DL><p>
+</DL><p>
+</DL><p>`;
+
+                // 非标准格式（H3直接作为兄弟）
+                const nonStandardHTML = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1>Bookmarks</H1>
+<DL><p>
+<H3>收藏夹栏</H3>
+<DL><p>
+  <H3>work</H3>
+  <DL><p>
+    <DT><A HREF="https://10.132.3.199/task/statistic">Xray</A>
+  </DL><p>
+</DL><p>
+</DL><p>`;
+
+                // 测试标准格式
+                analysis += `标准格式测试:\n`;
+                const standardBookmarks = parseBookmarkHTMLRobust(standardHTML);
+                const standardXray = standardBookmarks.find(b => b.title && b.title.includes('Xray'));
+                if (standardXray) {
+                    analysis += `Xray路径: [${standardXray.path.join(' > ')}]\n`;
+                    analysis += `期望: [收藏夹栏, work]\n`;
+                    analysis += `结果: ${JSON.stringify(standardXray.path) === JSON.stringify(['收藏夹栏', 'work']) ? '✅ 正确' : '❌ 错误'}\n`;
+                }
+
+                analysis += `\n非标准格式测试:\n`;
+                const nonStandardBookmarks = parseBookmarkHTMLRobust(nonStandardHTML);
+                const nonStandardXray = nonStandardBookmarks.find(b => b.title && b.title.includes('Xray'));
+                if (nonStandardXray) {
+                    analysis += `Xray路径: [${nonStandardXray.path.join(' > ')}]\n`;
+                    analysis += `期望: [收藏夹栏, work]\n`;
+                    analysis += `结果: ${JSON.stringify(nonStandardXray.path) === JSON.stringify(['收藏夹栏', 'work']) ? '✅ 正确' : '❌ 错误'}\n`;
+                }
+
+                analysis += `\n总结:\n`;
+                const standardSuccess = standardXray && JSON.stringify(standardXray.path) === JSON.stringify(['收藏夹栏', 'work']);
+                const nonStandardSuccess = nonStandardXray && JSON.stringify(nonStandardXray.path) === JSON.stringify(['收藏夹栏', 'work']);
+
+                if (standardSuccess && nonStandardSuccess) {
+                    analysis += `🎉 健壮算法成功处理两种格式！`;
+                    resultDiv.className = 'result success';
+                } else if (standardSuccess || nonStandardSuccess) {
+                    analysis += `⚠️ 健壮算法部分成功。`;
+                    resultDiv.className = 'result info';
+                } else {
+                    analysis += `❌ 健壮算法需要进一步改进。`;
+                    resultDiv.className = 'result error';
+                }
+
+                resultDiv.innerHTML = analysis;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 测试失败: ${error.message}`;
+            }
+        }
+
+        // 诊断格式
+        function diagnoseFormat() {
+            const resultDiv = document.getElementById('diagnosis-result');
+            resultDiv.style.display = 'block';
+
+            if (!globalDoc) {
+                resultDiv.innerHTML = '❌ 请先选择文件进行测试';
+                resultDiv.className = 'result error';
+                return;
+            }
+
+            resultDiv.innerHTML = '🔄 诊断HTML格式...';
+            resultDiv.className = 'result info';
+
+            try {
+                let diagnosis = `HTML格式诊断\n`;
+                diagnosis += `==============\n\n`;
+
+                // 检查第一个书签的结构
+                const firstLink = globalDoc.querySelector('a[href^="http"]');
+                if (firstLink) {
+                    diagnosis += `第一个书签: "${firstLink.textContent.trim()}"\n\n`;
+
+                    // 检查DOM结构
+                    const linkDT = firstLink.closest('dt');
+                    diagnosis += `1. 书签在DT中: ${linkDT ? '✅' : '❌'}\n`;
+
+                    if (linkDT) {
+                        const parentDL = linkDT.parentElement;
+                        diagnosis += `2. DT的父元素是DL: ${parentDL && parentDL.tagName.toLowerCase() === 'dl' ? '✅' : '❌'}\n`;
+
+                        if (parentDL && parentDL.tagName.toLowerCase() === 'dl') {
+                            const prevSibling = parentDL.previousElementSibling;
+                            diagnosis += `3. DL的前一个兄弟: ${prevSibling ? prevSibling.tagName : '无'}\n`;
+
+                            if (prevSibling) {
+                                if (prevSibling.tagName.toLowerCase() === 'h3') {
+                                    diagnosis += `4. 格式类型: 非标准格式（H3直接作为兄弟）\n`;
+                                    diagnosis += `   文件夹名: "${prevSibling.textContent.trim()}"\n`;
+                                } else if (prevSibling.tagName.toLowerCase() === 'dt') {
+                                    const h3 = prevSibling.querySelector('h3');
+                                    if (h3) {
+                                        diagnosis += `4. 格式类型: 标准格式（DT包含H3）\n`;
+                                        diagnosis += `   文件夹名: "${h3.textContent.trim()}"\n`;
+                                    } else {
+                                        diagnosis += `4. 格式类型: 未知格式（DT不包含H3）\n`;
+                                    }
+                                } else {
+                                    diagnosis += `4. 格式类型: 未知格式（${prevSibling.tagName}）\n`;
+                                }
+                            }
+                        }
+                    }
+
+                    // 使用健壮算法测试
+                    const path = getBookmarkPathRobust(firstLink);
+                    diagnosis += `\n健壮算法提取的路径: [${path.join(' > ')}]\n`;
+                }
+
+                resultDiv.className = 'result info';
+                resultDiv.innerHTML = diagnosis;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ 诊断失败: ${error.message}`;
+            }
+        }
+
+        // 健壮的解析函数
+        function parseBookmarkHTMLRobust(htmlContent) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlContent, 'text/html');
+            const bookmarks = [];
+
+            // 提取所有书签
+            const allLinks = doc.querySelectorAll('dt a[href], a[href]');
+            allLinks.forEach((link) => {
+                if (link.href && link.href.startsWith('http')) {
+                    const path = getBookmarkPathRobust(link);
+                    bookmarks.push({
+                        type: 'bookmark',
+                        title: link.textContent.trim() || 'Untitled',
+                        url: link.href,
+                        path: path
+                    });
+                }
+            });
+
+            // 提取所有文件夹
+            const allFolders = doc.querySelectorAll('h3');
+            allFolders.forEach((folderElement) => {
+                const folderName = folderElement.textContent.trim();
+                if (folderName !== 'Untitled Folder') {
+                    const path = getFolderPathRobust(folderElement);
+                    bookmarks.push({
+                        type: 'folder',
+                        title: folderName,
+                        path: path
+                    });
+                }
+            });
+
+            return bookmarks;
+        }
+
+        // 健壮的路径提取函数
+        function getBookmarkPathRobust(linkElement) {
+            const path = [];
+            let current = linkElement;
+            let loopCount = 0;
+            
+            while (current && current.parentElement && loopCount < 25) {
+                loopCount++;
+                current = current.parentElement;
+                
+                if (current.tagName.toLowerCase() === 'dl') {
+                    let folderElement = current.previousElementSibling;
+                    
+                    while (folderElement && folderElement.nodeType !== Node.ELEMENT_NODE) {
+                        folderElement = folderElement.previousSibling;
+                    }
+                    
+                    if (folderElement) {
+                        let h3Element = null;
+                        
+                        if (folderElement.tagName.toLowerCase() === 'h3') {
+                            h3Element = folderElement;
+                        } else if (folderElement.tagName.toLowerCase() === 'dt') {
+                            h3Element = folderElement.querySelector('h3');
+                        }
+                        
+                        if (h3Element) {
+                            const folderName = h3Element.textContent.trim();
+                            if (folderName && folderName !== 'Untitled Folder') {
+                                path.unshift(folderName);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return path;
+        }
+
+        function getFolderPathRobust(folderElement) {
+            const path = [];
+            const folderName = folderElement.textContent.trim();
+            let current = folderElement;
+            let loopCount = 0;
+            
+            while (current && current.parentElement && loopCount < 25) {
+                loopCount++;
+                current = current.parentElement;
+                
+                if (current.tagName.toLowerCase() === 'dl') {
+                    let folderElementSibling = current.previousElementSibling;
+                    
+                    while (folderElementSibling && folderElementSibling.nodeType !== Node.ELEMENT_NODE) {
+                        folderElementSibling = folderElementSibling.previousSibling;
+                    }
+                    
+                    if (folderElementSibling) {
+                        let h3Element = null;
+                        
+                        if (folderElementSibling.tagName.toLowerCase() === 'h3') {
+                            h3Element = folderElementSibling;
+                        } else if (folderElementSibling.tagName.toLowerCase() === 'dt') {
+                            h3Element = folderElementSibling.querySelector('h3');
+                        }
+                        
+                        if (h3Element) {
+                            const parentFolderName = h3Element.textContent.trim();
+                            if (parentFolderName && parentFolderName !== 'Untitled Folder' && parentFolderName !== folderName) {
+                                path.unshift(parentFolderName);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return path;
+        }
+
+        // 辅助函数
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(new Error('文件读取失败'));
+                reader.readAsText(file, 'UTF-8');
+            });
+        }
+    </script>
+</body>
+</html>

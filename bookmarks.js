@@ -1711,82 +1711,77 @@ class BookmarkManager {
     return path;
   }
 
-  // 获取文件夹的路径 - 使用与书签相同的最终修复逻辑
+  // 获取文件夹的路径 - 使用与书签相同的健壮逻辑
   getFolderPath(folderElement) {
     const path = [];
     const folderName = folderElement.textContent.trim();
 
     console.log(`📁 开始分析文件夹路径: "${folderName}"`);
 
-    // 从包含H3的DT开始
-    let currentDT = folderElement.closest('dt');
-    if (!currentDT) {
-      console.log(`❌ 无法找到包含H3的DT元素`);
-      return path;
-    }
-
-    console.log(`🎯 起始DT元素找到`);
-
-    // 向上遍历DOM树，找到所有父级文件夹
+    // 从包含H3的元素开始向上遍历
+    let current = folderElement;
     let loopCount = 0;
-    while (currentDT && loopCount < 15) { // 增加循环限制
+
+    while (current && current.parentElement && loopCount < 25) {
       loopCount++;
-      console.log(`\n🔄 循环 ${loopCount}:`);
+      current = current.parentElement;
 
-      // 获取当前DT的父DL
-      const parentDL = currentDT.parentElement;
-      console.log(`📍 当前DT的父元素: ${parentDL ? parentDL.tagName : 'null'}`);
+      console.log(`\n🔄 循环 ${loopCount}: 当前元素 ${current.tagName}`);
 
-      if (!parentDL || parentDL.tagName.toLowerCase() !== 'dl') {
-        console.log(`🛑 父元素不是DL，停止查找`);
-        break;
-      }
+      // 如果当前元素是DL，查找对应的文件夹
+      if (current.tagName.toLowerCase() === 'dl') {
+        console.log(`📁 发现DL元素，查找对应的文件夹...`);
 
-      // 查找这个DL对应的文件夹DT（应该是DL的前一个兄弟元素）
-      let folderDT = parentDL.previousElementSibling;
-      console.log(`🔍 查找DL的前一个兄弟元素...`);
+        // 查找DL的前一个兄弟元素
+        let folderElement = current.previousElementSibling;
+        console.log(`🔍 DL的前一个兄弟: ${folderElement ? folderElement.tagName : 'null'}`);
 
-      // 跳过所有非元素节点（文本节点、注释节点等）
-      while (folderDT && folderDT.nodeType !== Node.ELEMENT_NODE) {
-        console.log(`⏭️ 跳过非元素节点，类型: ${folderDT.nodeType}`);
-        folderDT = folderDT.previousSibling;
-      }
-
-      console.log(`📁 DL的前一个兄弟元素: ${folderDT ? folderDT.tagName : 'null'}`);
-
-      if (!folderDT || folderDT.tagName.toLowerCase() !== 'dt') {
-        console.log(`❌ 前一个兄弟不是DT元素，停止查找`);
-        break;
-      }
-
-      // 在这个DT中查找H3元素（父文件夹名）
-      const parentFolderH3 = folderDT.querySelector('h3');
-      console.log(`🔍 在DT中查找H3: ${parentFolderH3 ? '找到' : '未找到'}`);
-
-      if (parentFolderH3) {
-        const parentFolderName = parentFolderH3.textContent.trim();
-        console.log(`📂 父文件夹名: "${parentFolderName}"`);
-
-        // 只跳过根级别的"Untitled Folder"，且不要添加自己
-        if (parentFolderName && parentFolderName !== 'Untitled Folder' && parentFolderName !== folderName) {
-          path.unshift(parentFolderName);
-          console.log(`✅ 添加到路径: "${parentFolderName}"`);
-          console.log(`📊 当前路径: [${path.join(' > ')}]`);
-        } else {
-          console.log(`⏭️ 跳过文件夹: "${parentFolderName}"`);
+        // 跳过所有非元素节点（文本节点、注释等）
+        while (folderElement && folderElement.nodeType !== Node.ELEMENT_NODE) {
+          console.log(`⏭️ 跳过非元素节点，类型: ${folderElement.nodeType}`);
+          folderElement = folderElement.previousSibling;
         }
-      } else {
-        console.log(`❌ DT中没有找到H3元素`);
-        // 如果没有H3，可能已经到达根级别，停止查找
-        break;
-      }
 
-      // 继续向上查找：将folderDT作为新的currentDT
-      currentDT = folderDT;
-      console.log(`⬆️ 继续向上查找，新的currentDT: ${currentDT ? 'DT元素' : 'null'}`);
+        console.log(`📁 处理后的兄弟元素: ${folderElement ? folderElement.tagName : 'null'}`);
+
+        if (folderElement) {
+          let h3Element = null;
+
+          // 情况1：H3直接作为DL的兄弟（非标准但可能存在）
+          if (folderElement.tagName.toLowerCase() === 'h3') {
+            console.log(`📂 发现H3直接作为DL兄弟（非标准格式）`);
+            h3Element = folderElement;
+          }
+          // 情况2：标准格式 - DT包含H3
+          else if (folderElement.tagName.toLowerCase() === 'dt') {
+            console.log(`📂 发现DT元素，查找其中的H3...`);
+            h3Element = folderElement.querySelector('h3');
+            console.log(`🔍 DT中的H3: ${h3Element ? '找到' : '未找到'}`);
+          }
+
+          // 如果找到H3元素，提取文件夹名
+          if (h3Element) {
+            const parentFolderName = h3Element.textContent.trim();
+            console.log(`📂 父文件夹名: "${parentFolderName}"`);
+
+            // 只跳过根级别的"Untitled Folder"，且不要添加自己
+            if (parentFolderName && parentFolderName !== 'Untitled Folder' && parentFolderName !== folderName) {
+              path.unshift(parentFolderName);
+              console.log(`✅ 添加到路径: "${parentFolderName}"`);
+              console.log(`📊 当前路径: [${path.join(' > ')}]`);
+            } else {
+              console.log(`⏭️ 跳过文件夹: "${parentFolderName}"`);
+            }
+          } else {
+            console.log(`❌ 未找到H3元素`);
+          }
+        } else {
+          console.log(`❌ DL没有前一个兄弟元素`);
+        }
+      }
     }
 
-    if (loopCount >= 15) {
+    if (loopCount >= 25) {
       console.log(`⚠️ 达到最大循环次数，强制停止`);
     }
 
