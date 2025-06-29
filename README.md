@@ -146,7 +146,7 @@ A powerful browser extension for Chrome and Edge that provides quick access to b
 ## Features
 
 ### 🔍 Core Search Features
-- **Quick Access**: Press `Ctrl+Q` (unified shortcut for all platforms) to open the search overlay
+- **Quick Access**: Press Windows（Ctrl+Q）、macOS（⌘+K）to open the search overlay
 - **Unified Search**: Search through both bookmarks and browsing history in one interface
 - **Smart Matching**: Support for fuzzy matching, pinyin search, and abbreviation matching
 - **Frosted Glass UI**: Beautiful overlay with blur background effect
@@ -184,7 +184,7 @@ A powerful browser extension for Chrome and Edge that provides quick access to b
 ## Usage
 
 ### Basic Search
-1. Press `Ctrl+Q` (unified shortcut for all platforms) on any webpage
+1. Press Windows（Ctrl+Q）、macOS（⌘+K） on any webpage
 2. Type to search through your bookmarks and history
 3. Use arrow keys to navigate results
 4. Press Enter to open the selected result
