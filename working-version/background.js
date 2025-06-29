@@ -21,16 +21,15 @@ class PerformanceCache {
     this.historyCacheTime = 0;
     this.pinyinCacheTime = 0;
 
-    // 缓存配置 - 优化为更实时的数据同步
+    // 缓存配置
     this.config = {
-      bookmarksCacheDuration: 5 * 60 * 1000,  // 缩短到5分钟
-      historyCacheDuration: 2 * 60 * 1000,    // 缩短到2分钟，更实时
-      searchResultsCacheDuration: 1 * 60 * 1000, // 缩短到1分钟
-      pinyinCacheDuration: 5 * 60 * 1000,     // 缩短到5分钟
+      bookmarksCacheDuration: 10 * 60 * 1000, // 10分钟
+      historyCacheDuration: 5 * 60 * 1000,    // 5分钟
+      searchResultsCacheDuration: 2 * 60 * 1000, // 2分钟
+      pinyinCacheDuration: 10 * 60 * 1000,    // 10分钟
       maxSearchResults: 1000,                  // 最大缓存搜索结果数
       maxMemoryMB: 50,                        // 最大内存使用50MB
-      cleanupInterval: 30 * 60 * 1000,        // 30分钟清理一次
-      realtimeUpdateDelay: 500                 // 实时更新延迟500ms
+      cleanupInterval: 30 * 60 * 1000         // 30分钟清理一次
     };
 
     // 性能监控
@@ -140,42 +139,6 @@ class PerformanceCache {
       memoryUsage: this.stats.memoryUsage + 'MB'
     };
   }
-
-  // 清理所有搜索结果缓存 - 当底层数据变化时调用
-  clearSearchResultsCache() {
-    const cacheSize = this.searchResultsCache.size;
-    this.searchResultsCache.clear();
-    console.log(`🧹 Cleared ${cacheSize} search result cache entries`);
-  }
-
-  // 强制刷新历史记录缓存
-  forceRefreshHistoryCache() {
-    this.historyCache = null;
-    this.historyCacheTime = 0;
-    this.clearSearchResultsCache(); // 同时清理搜索缓存
-    console.log('🔄 Forced history cache refresh');
-  }
-
-  // 强制刷新书签缓存
-  forceRefreshBookmarksCache() {
-    this.bookmarksCache = null;
-    this.bookmarksCacheTime = 0;
-    this.clearSearchResultsCache(); // 同时清理搜索缓存
-    console.log('🔄 Forced bookmarks cache refresh');
-  }
-
-  // 检查数据是否需要刷新（用于实时同步）
-  needsDataRefresh() {
-    const now = Date.now();
-    const historyStale = !this.historyCache || (now - this.historyCacheTime) > this.config.historyCacheDuration;
-    const bookmarksStale = !this.bookmarksCache || (now - this.bookmarksCacheTime) > this.config.bookmarksCacheDuration;
-
-    return {
-      history: historyStale,
-      bookmarks: bookmarksStale,
-      any: historyStale || bookmarksStale
-    };
-  }
 }
 
 // 全局缓存实例
@@ -206,82 +169,32 @@ async function initializeExtension() {
 }
 
 // 监听扩展启动事件
-chrome.runtime.onStartup.addListener(async () => {
-  await initializeExtension();
-  await reinjectContentScriptsToAllTabs();
+chrome.runtime.onStartup.addListener(initializeExtension);
+chrome.runtime.onInstalled.addListener(initializeExtension);
+
+// 监听书签变化，清除相关缓存
+chrome.bookmarks.onCreated.addListener(() => {
+  performanceCache.bookmarksCache = null;
+  performanceCache.bookmarksCacheTime = 0;
+  console.log('📚 Bookmark cache invalidated due to creation');
 });
 
-chrome.runtime.onInstalled.addListener(async (details) => {
-  await initializeExtension();
-
-  // 如果是扩展更新或重新加载，重新注入所有页面
-  if (details.reason === 'install' || details.reason === 'update') {
-    console.log('🔄 Extension installed/updated, reinjecting content scripts to all tabs...');
-    await reinjectContentScriptsToAllTabs();
-  }
+chrome.bookmarks.onRemoved.addListener(() => {
+  performanceCache.bookmarksCache = null;
+  performanceCache.bookmarksCacheTime = 0;
+  console.log('📚 Bookmark cache invalidated due to removal');
 });
 
-// 监听书签变化，清除相关缓存并立即重新加载 - 改进版本
-chrome.bookmarks.onCreated.addListener(async (id, bookmark) => {
-  console.log('📚 Bookmark created:', bookmark.title);
-
-  // 使用新的强制刷新方法，同时清理搜索缓存
-  performanceCache.forceRefreshBookmarksCache();
-
-  // 延迟重新加载书签缓存，确保新书签能被搜索到
-  setTimeout(async () => {
-    try {
-      await getAllBookmarks();
-      console.log('✅ Bookmark cache refreshed after creation');
-    } catch (error) {
-      console.error('❌ Failed to refresh bookmark cache:', error);
-    }
-  }, performanceCache.config.realtimeUpdateDelay);
+chrome.bookmarks.onChanged.addListener(() => {
+  performanceCache.bookmarksCache = null;
+  performanceCache.bookmarksCacheTime = 0;
+  console.log('📚 Bookmark cache invalidated due to change');
 });
 
-chrome.bookmarks.onRemoved.addListener(async (id, removeInfo) => {
-  console.log('📚 Bookmark removed:', id);
-  performanceCache.forceRefreshBookmarksCache();
-
-  // 延迟重新加载
-  setTimeout(async () => {
-    try {
-      await getAllBookmarks();
-      console.log('✅ Bookmark cache refreshed after removal');
-    } catch (error) {
-      console.error('❌ Failed to refresh bookmark cache:', error);
-    }
-  }, performanceCache.config.realtimeUpdateDelay);
-});
-
-chrome.bookmarks.onChanged.addListener(async (id, changeInfo) => {
-  console.log('📚 Bookmark changed:', changeInfo);
-  performanceCache.forceRefreshBookmarksCache();
-
-  // 延迟重新加载
-  setTimeout(async () => {
-    try {
-      await getAllBookmarks();
-      console.log('✅ Bookmark cache refreshed after change');
-    } catch (error) {
-      console.error('❌ Failed to refresh bookmark cache:', error);
-    }
-  }, performanceCache.config.realtimeUpdateDelay);
-});
-
-chrome.bookmarks.onMoved.addListener(async (id, moveInfo) => {
-  console.log('📚 Bookmark moved:', id);
-  performanceCache.forceRefreshBookmarksCache();
-
-  // 延迟重新加载
-  setTimeout(async () => {
-    try {
-      await getAllBookmarks();
-      console.log('✅ Bookmark cache refreshed after move');
-    } catch (error) {
-      console.error('❌ Failed to refresh bookmark cache:', error);
-    }
-  }, performanceCache.config.realtimeUpdateDelay);
+chrome.bookmarks.onMoved.addListener(() => {
+  performanceCache.bookmarksCache = null;
+  performanceCache.bookmarksCacheTime = 0;
+  console.log('📚 Bookmark cache invalidated due to move');
 });
 
 // 简化版拼音转换（与lib中的保持一致）
@@ -1183,191 +1096,96 @@ ${JSON.stringify(bookmarks.slice(0, 50).map(b => ({
   }
 }
 
-console.log('🎯 Reached end of AI service classes...');
-
 // Initialize AI service with new architecture
-console.log('🔧 About to register command listener...');
 
 // Handle keyboard shortcut command
 chrome.commands.onCommand.addListener(async (command) => {
-  console.log('🎯 Background script received command:', command);
-  console.log('⏰ Timestamp:', new Date().toISOString());
   if (command === 'toggle-search') {
-    console.log('🚀 Handling toggle-search command...');
     await handleToggleSearch();
-  }
-});
-
-// Test if background script is loaded
-console.log('🟢 QuickFinder background script loaded at:', new Date().toISOString());
-
-// Test command registration
-chrome.commands.getAll((commands) => {
-  console.log('📋 Registered commands:', commands);
-  const toggleCommand = commands.find(cmd => cmd.name === 'toggle-search');
-  if (toggleCommand) {
-    console.log('✅ toggle-search command found:', toggleCommand);
-  } else {
-    console.log('❌ toggle-search command not found!');
   }
 });
 
 // Handle toggle search functionality
 async function handleToggleSearch() {
   try {
+    // Get the active tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab || !tab.id) {
-      console.log('🚫 No active tab found.');
-      return;
-    }
 
-    console.log('📋 Current tab:', tab.url, 'ID:', tab.id);
+    if (tab && tab.id) {
+      // Check if the tab URL is a special page that doesn't support content scripts
+      if (isSpecialPage(tab.url)) {
+        console.log('🚫 Special page detected:', tab.url, '- Opening Side Panel directly');
 
-    // 检查是否是特殊页面（如chrome://, about:blank等）
-    if (isSpecialPage(tab.url)) {
-      console.log(`🚫 Special page detected: ${tab.url}. Opening side panel or popup.`);
-      // 对于特殊页面，内容脚本无法注入，因此直接打开侧边栏或弹出窗口
-      try {
-        if (chrome.sidePanel && chrome.sidePanel.open) {
-          await chrome.sidePanel.open({ windowId: tab.windowId });
-          console.log('✅ Side Panel opened for special page.');
-        } else {
-          await chrome.action.openPopup();
-          console.log('✅ Popup opened as fallback for special page.');
+        // For special pages, directly open Side Panel as default behavior
+        // No need to try content script injection as it will always fail
+        try {
+          if (chrome.sidePanel && chrome.sidePanel.open) {
+            await chrome.sidePanel.open({ windowId: tab.windowId });
+            console.log('✅ Side Panel opened successfully for special page');
+            return;
+          } else {
+            console.log('⚠️ Side Panel API not available (Chrome < 114)');
+          }
+        } catch (sidePanelError) {
+          console.log('⚠️ Side Panel failed:', sidePanelError.message);
         }
-      } catch (e) {
-        console.error('❌ Failed to open side panel or popup:', e);
+
+        // Fallback to popup only if Side Panel is not available
+        try {
+          // Set flag for popup to show search mode
+          await chrome.storage.local.set({ 'popup-search-mode': true });
+          await chrome.action.openPopup();
+          console.log('✅ Popup opened as fallback for special page');
+          return;
+        } catch (popupError) {
+          console.log('⚠️ Popup fallback failed:', popupError.message);
+
+          // Show helpful notification as last resort
+          try {
+            await chrome.notifications.create({
+              type: 'basic',
+              iconUrl: 'icons/icon48.png',
+              title: 'QuickFinder - 特殊页面',
+              message: '在浏览器内置页面，请点击扩展图标使用QuickFinder，或切换到普通网页使用快捷键。',
+              buttons: [
+                { title: '打开新标签页' },
+                { title: '了解更多' }
+              ]
+            });
+            console.log('✅ Helpful notification shown for special page');
+          } catch (notificationError) {
+            console.error('❌ All fallback methods failed:', notificationError);
+          }
+          return;
+        }
+      } else {
+        // For normal pages, use content script overlay
+        try {
+          await chrome.tabs.sendMessage(tab.id, { action: 'toggle-search' });
+          console.log('✅ Content script message sent successfully');
+        } catch (messageError) {
+          console.log('⚠️ Content script not ready, injecting...');
+          // If content script is not injected, inject it first
+          await injectContentScript(tab.id);
+        }
       }
-      return;
     }
-
-    // 对于普通页面，直接执行内容脚本中的切换函数
-    console.log('✅ Normal page detected. Executing script to toggle overlay.');
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      function: toggleOverlayInPage,
-    });
-
   } catch (error) {
     console.error('❌ Error handling keyboard shortcut:', error);
 
-    // 检查是否是扩展重新加载导致的问题
-    const isExtensionReloadIssue = error.message && (
-      error.message.includes('Extension context invalidated') ||
-      error.message.includes('Could not establish connection') ||
-      error.message.includes('The extensions gallery cannot be scripted')
-    );
-
-    if (isExtensionReloadIssue) {
-      console.log('🔄 Detected extension reload issue, attempting reinjection...');
-    }
-
-    // 如果执行脚本失败，可能是因为内容脚本尚未注入或扩展重新加载
-    // 尝试注入脚本，然后再次尝试切换
+    // Ultimate fallback: try side panel or popup
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab && tab.id && !isSpecialPage(tab.url)) {
-        console.log('🔄 Script execution failed, attempting to inject and retry...');
-
-        // 使用重新注入模式，特别是当检测到扩展重新加载问题时
-        await injectContentScriptSafely(tab.id, isExtensionReloadIssue);
-
-        // 增加延迟时间，给脚本更多时间初始化
-        console.log('⏳ Waiting for content script to initialize...');
-        setTimeout(async () => {
-          try {
-            await chrome.scripting.executeScript({
-              target: { tabId: tab.id },
-              function: toggleOverlayInPage,
-            });
-            console.log('✅ Retried toggling overlay after injection.');
-          } catch (retryError) {
-            console.error('❌ Retry attempt also failed:', retryError);
-
-            // 最后一次尝试：再等待一段时间后重试
-            setTimeout(async () => {
-              try {
-                await chrome.scripting.executeScript({
-                  target: { tabId: tab.id },
-                  function: toggleOverlayInPage,
-                });
-                console.log('✅ Final retry successful.');
-              } catch (finalRetryError) {
-                console.error('❌ All retry attempts failed:', finalRetryError);
-
-                // 如果所有尝试都失败，建议用户刷新页面
-                console.log('💡 Suggestion: Try refreshing the page or reopening the tab');
-              }
-            }, 500);
-          }
-        }, 600); // 对于重新注入，给更多时间
+      if (tab && chrome.sidePanel && chrome.sidePanel.open) {
+        await chrome.sidePanel.open({ windowId: tab.windowId });
+        console.log('✅ Side Panel opened as ultimate fallback');
+      } else {
+        await chrome.action.openPopup();
+        console.log('✅ Popup opened as ultimate fallback');
       }
-    } catch (finalError) {
-      console.error('❌ All attempts to toggle overlay failed:', finalError);
+    } catch (ultimateError) {
+      console.error('❌ All fallback methods failed:', ultimateError);
     }
-  }
-}
-
-// 这个函数将在目标页面被序列化并执行
-function toggleOverlayInPage() {
-  // 检查QuickFinder实例是否已存在于window对象上
-  if (window.quickFinderInstance && typeof window.quickFinderInstance.toggle === 'function') {
-    console.log('✅ QuickFinder instance found, toggling...');
-    window.quickFinderInstance.toggle();
-    return;
-  }
-
-  // 如果实例不存在，尝试重新创建
-  console.warn('⚠️ QuickFinder instance not found, attempting to recreate...');
-
-  // 首先尝试调用确保初始化函数
-  if (typeof window.ensureQuickFinderInitialization === 'function') {
-    try {
-      console.log('🔄 Calling ensureQuickFinderInitialization...');
-      const instance = window.ensureQuickFinderInitialization();
-      if (instance && typeof instance.toggle === 'function') {
-        console.log('✅ QuickFinder instance ensured via initialization function');
-        instance.toggle();
-        return;
-      }
-    } catch (error) {
-      console.error('❌ Failed to ensure initialization:', error);
-    }
-  }
-
-  // 如果上面失败，尝试直接调用初始化函数
-  if (typeof window.initializeQuickFinder === 'function') {
-    try {
-      console.log('🔄 Calling initializeQuickFinder...');
-      const instance = window.initializeQuickFinder();
-      if (instance && typeof instance.toggle === 'function') {
-        console.log('✅ QuickFinder instance created via initialization function');
-        setTimeout(() => instance.toggle(), 100);
-        return;
-      }
-    } catch (error) {
-      console.error('❌ Failed to call initializeQuickFinder:', error);
-    }
-  }
-
-  // 最后尝试直接创建实例
-  if (typeof QuickFinder !== 'undefined') {
-    try {
-      console.log('🔄 Directly recreating QuickFinder instance...');
-      window.quickFinderInstance = new QuickFinder();
-      console.log('✅ QuickFinder instance recreated successfully');
-
-      // 给实例一点时间初始化，然后切换
-      setTimeout(() => {
-        if (window.quickFinderInstance && typeof window.quickFinderInstance.toggle === 'function') {
-          window.quickFinderInstance.toggle();
-        }
-      }, 100);
-    } catch (error) {
-      console.error('❌ Failed to recreate QuickFinder instance:', error);
-    }
-  } else {
-    console.error('❌ QuickFinder class not found - content script may not be loaded');
   }
 }
 
@@ -1386,221 +1204,39 @@ function isSpecialPage(url) {
     'javascript:'
   ];
 
-  // 检查浏览器错误页面
-  const errorPagePatterns = [
-    'chrome-error://',
-    'edge-error://',
-    'about:neterror',
-    'about:certerror',
-    'about:blocked'
-  ];
-
   return specialPages.some(prefix => url.startsWith(prefix)) ||
-         errorPagePatterns.some(pattern => url.startsWith(pattern)) ||
          url === 'about:blank' ||
          url.includes('newtab') ||
-         url.includes('new-tab-page') ||
-         // 检测常见的错误页面URL模式
-         url.includes('ERR_') ||
-         url.includes('NET::') ||
-         url.includes('DNS_PROBE_') ||
-         url.includes('CONNECTION_') ||
-         // 检测本地错误页面
-         (url.startsWith('data:text/html') && url.includes('error'));
+         url.includes('new-tab-page');
 }
 
-// 检测是否是错误页面
-async function isErrorPage(tab) {
-  try {
-    // 检查标签页状态
-    if (tab.status === 'complete') {
-      // 尝试注入一个简单的脚本来检测错误页面
-      try {
-        const results = await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          func: () => {
-            // 检测常见的错误页面特征
-            const body = document.body;
-            const html = document.documentElement;
-
-            if (!body || !html) return true; // 页面未完全加载
-
-            // 检测Chrome错误页面
-            const errorElements = [
-              'div[id*="error"]',
-              'div[class*="error"]',
-              'div[id*="offline"]',
-              'div[class*="offline"]',
-              '[id*="ERR_"]',
-              '[class*="ERR_"]'
-            ];
-
-            for (const selector of errorElements) {
-              if (document.querySelector(selector)) {
-                return true;
-              }
-            }
-
-            // 检测页面标题中的错误信息
-            const title = document.title.toLowerCase();
-            const errorTitles = [
-              'error',
-              'not found',
-              '404',
-              '500',
-              'connection',
-              'timeout',
-              'refused',
-              'unreachable',
-              'dns',
-              'certificate'
-            ];
-
-            return errorTitles.some(errorTitle => title.includes(errorTitle));
-          }
-        });
-
-        return results && results[0] && results[0].result;
-      } catch (scriptError) {
-        // 如果脚本注入失败，不一定是错误页面，可能是CSP限制或其他原因
-        console.log('⚠️ Script injection failed for error detection:', scriptError.message);
-        console.log('🔍 This does not necessarily mean it\'s an error page');
-        // 只有在特定错误情况下才认为是错误页面
-        if (scriptError.message.includes('Cannot access') ||
-            scriptError.message.includes('chrome-error://') ||
-            scriptError.message.includes('ERR_')) {
-          return true;
-        }
-        return false; // 默认认为不是错误页面
-      }
-    }
-
-    return false;
-  } catch (error) {
-    console.log('Error checking if page is error page:', error);
-    return false;
-  }
-}
-
-// 批量重新注入content script到所有已打开的标签页
-async function reinjectContentScriptsToAllTabs() {
-  try {
-    console.log('🔄 Starting batch content script reinjection...');
-
-    // 获取所有标签页
-    const tabs = await chrome.tabs.query({});
-    console.log(`📋 Found ${tabs.length} tabs to process`);
-
-    let successCount = 0;
-    let skipCount = 0;
-    let errorCount = 0;
-
-    // 并发处理所有标签页，但限制并发数量
-    const batchSize = 5; // 每批处理5个标签页
-    for (let i = 0; i < tabs.length; i += batchSize) {
-      const batch = tabs.slice(i, i + batchSize);
-
-      await Promise.allSettled(
-        batch.map(async (tab) => {
-          try {
-            // 跳过特殊页面
-            if (isSpecialPage(tab.url)) {
-              console.log(`⏭️ Skipping special page: ${tab.url}`);
-              skipCount++;
-              return;
-            }
-
-            // 跳过未完成加载的页面
-            if (tab.status !== 'complete') {
-              console.log(`⏭️ Skipping incomplete page: ${tab.url}`);
-              skipCount++;
-              return;
-            }
-
-            console.log(`🔄 Reinjecting content script to tab ${tab.id}: ${tab.url}`);
-            await injectContentScriptSafely(tab.id, true); // 传入isReinjection=true
-            successCount++;
-
-          } catch (error) {
-            console.warn(`⚠️ Failed to reinject content script to tab ${tab.id}:`, error.message);
-            errorCount++;
-          }
-        })
-      );
-
-      // 在批次之间添加小延迟，避免过度占用资源
-      if (i + batchSize < tabs.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
-
-    console.log(`✅ Batch reinjection completed: ${successCount} success, ${skipCount} skipped, ${errorCount} errors`);
-
-    // 如果有错误，记录详细信息
-    if (errorCount > 0) {
-      console.warn(`⚠️ ${errorCount} tabs failed reinjection. They may need manual refresh.`);
-    }
-
-  } catch (error) {
-    console.error('❌ Error during batch content script reinjection:', error);
-  }
-}
-
-// 安全的content script注入函数，支持重新注入模式
-async function injectContentScriptSafely(tabId, isReinjection = false) {
+// Function to inject content script if not already present
+async function injectContentScript(tabId) {
   try {
     // Get tab info to check if injection is possible
     const tab = await chrome.tabs.get(tabId);
 
     // Skip injection for special pages - these should use Side Panel instead
     if (isSpecialPage(tab.url)) {
-      if (!isReinjection) {
-        console.log('🚫 Skipping content script injection for special page:', tab.url);
-        console.log('💡 Special pages should use Side Panel or Popup instead');
+      console.log('🚫 Skipping content script injection for special page:', tab.url);
+      console.log('💡 Special pages should use Side Panel or Popup instead');
 
-        // Try to open Side Panel as alternative (only for non-reinjection cases)
-        try {
-          if (chrome.sidePanel && chrome.sidePanel.open) {
-            await chrome.sidePanel.open({ windowId: tab.windowId });
-            console.log('✅ Opened Side Panel as alternative to content script');
-          } else {
-            await chrome.action.openPopup();
-            console.log('✅ Opened Popup as alternative to content script');
-          }
-        } catch (alternativeError) {
-          console.error('❌ Failed to open alternative interface:', alternativeError);
+      // Try to open Side Panel as alternative
+      try {
+        if (chrome.sidePanel && chrome.sidePanel.open) {
+          await chrome.sidePanel.open({ windowId: tab.windowId });
+          console.log('✅ Opened Side Panel as alternative to content script');
+        } else {
+          await chrome.action.openPopup();
+          console.log('✅ Opened Popup as alternative to content script');
         }
+      } catch (alternativeError) {
+        console.error('❌ Failed to open alternative interface:', alternativeError);
       }
       return;
     }
 
-    const logPrefix = isReinjection ? '🔄 Reinjecting' : '📝 Injecting';
-    console.log(`${logPrefix} content script for page:`, tab.url);
-
-    // 如果是重新注入，先尝试清理旧的实例
-    if (isReinjection) {
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId: tabId },
-          func: () => {
-            // 清理旧的QuickFinder实例
-            if (window.quickFinderInstance) {
-              try {
-                if (window.quickFinderInstance.hide) {
-                  window.quickFinderInstance.hide();
-                }
-                window.quickFinderInstance = null;
-                console.log('🧹 Cleaned up old QuickFinder instance');
-              } catch (e) {
-                console.warn('⚠️ Error cleaning up old instance:', e);
-              }
-            }
-          }
-        });
-      } catch (cleanupError) {
-        console.warn('⚠️ Could not cleanup old instance:', cleanupError.message);
-      }
-    }
+    console.log('📝 Injecting content script for normal page:', tab.url);
 
     // Try to inject CSS first
     await chrome.scripting.insertCSS({
@@ -1614,51 +1250,34 @@ async function injectContentScriptSafely(tabId, isReinjection = false) {
       files: ['content.js']
     });
 
-    // 等待脚本初始化
-    await new Promise(resolve => setTimeout(resolve, isReinjection ? 300 : 200));
-
-    // 验证注入是否成功
-    try {
-      const result = await chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        func: () => {
-          return {
-            hasInstance: !!window.quickFinderInstance,
-            hasToggleFunction: !!(window.quickFinderInstance && typeof window.quickFinderInstance.toggle === 'function'),
-            hasQuickFinderClass: typeof QuickFinder !== 'undefined'
-          };
-        }
+    // After injection, send the toggle message with a delay
+    setTimeout(() => {
+      chrome.tabs.sendMessage(tabId, { action: 'toggle-search' }).catch(() => {
+        console.log('⚠️ Content script may not be ready yet, will retry');
       });
+    }, 200);
 
-      const status = result[0]?.result;
-      if (status?.hasInstance && status?.hasToggleFunction) {
-        console.log(`✅ Content script ${isReinjection ? 'reinjection' : 'injection'} completed successfully`);
-      } else {
-        console.warn(`⚠️ Content script ${isReinjection ? 'reinjection' : 'injection'} may have issues:`, status);
-      }
-    } catch (verifyError) {
-      console.warn('⚠️ Could not verify injection success:', verifyError.message);
-    }
+    console.log('✅ Content script injection completed successfully');
 
   } catch (error) {
-    console.error(`❌ Error ${isReinjection ? 'reinjecting' : 'injecting'} content script:`, error);
+    console.error('❌ Error injecting content script:', error);
 
-    if (!isReinjection) {
-      console.log('🔧 Content script injection failed. Please check:');
-      console.log('   1. JavaScript errors in content script');
-      console.log('   2. CSP restrictions on this page');
-      console.log('   3. Extension permissions');
-      console.log('💡 Try refreshing the page and testing again');
+    // If injection fails, try Side Panel as fallback
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      console.log('🔄 Injection failed, trying Side Panel fallback for:', tab.url);
+
+      if (chrome.sidePanel && chrome.sidePanel.open) {
+        await chrome.sidePanel.open({ windowId: tab.windowId });
+        console.log('✅ Side Panel opened as injection fallback');
+      } else {
+        await chrome.action.openPopup();
+        console.log('✅ Popup opened as injection fallback');
+      }
+    } catch (fallbackError) {
+      console.error('❌ All injection and fallback methods failed:', fallbackError);
     }
-
-    // 重新抛出错误，让调用者知道注入失败了
-    throw error;
   }
-}
-
-// Function to inject content script if not already present (保持向后兼容)
-async function injectContentScript(tabId) {
-  return await injectContentScriptSafely(tabId, false);
 }
 
 // Handle messages from content scripts
@@ -1744,30 +1363,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   } else if (message.action === 'clear-icon-cache') {
     handleClearIconCache().then(sendResponse);
-    return true;
-  } else if (message.action === 'force-inject-content-script') {
-    // 强制注入Content Script的处理
-    handleForceInjectContentScript(sender).then(sendResponse);
-    return true;
-  } else if (message.action === 'reinject-all-tabs') {
-    // 手动重新注入所有标签页
-    handleReinjectAllTabs().then(sendResponse);
-    return true;
-  } else if (message.action === 'check-content-script-status') {
-    // 检查当前标签页的content script状态
-    handleCheckContentScriptStatus(sender).then(sendResponse);
-    return true;
-  } else if (message.action === 'refresh-data-cache') {
-    // 手动刷新数据缓存
-    handleRefreshDataCache(message.type).then(sendResponse);
-    return true;
-  } else if (message.action === 'check-data-freshness') {
-    // 检查数据新鲜度
-    handleCheckDataFreshness().then(sendResponse);
-    return true;
-  } else if (message.action === 'force-refresh-all-data') {
-    // 强制刷新所有数据
-    handleForceRefreshAllData().then(sendResponse);
     return true;
   }
 });
@@ -1904,7 +1499,6 @@ async function searchPinyin(query) {
         if (titleMatch || englishMatch || pinyinMatch) {
           results.push({
             ...bookmark,
-            type: 'bookmark', // 明确标记为书签类型
             matchType: titleMatch || englishMatch ? 'title' : 'pinyin',
             score: calculateScore(bookmark, titleMatch || englishMatch, pinyinMatch)
           });
@@ -1929,7 +1523,6 @@ async function searchPinyin(query) {
         if (titleMatch || englishMatch || pinyinMatch) {
           results.push({
             ...historyItem,
-            type: 'history', // 明确标记为历史记录类型
             matchType: titleMatch || englishMatch ? 'title' : 'pinyin',
             score: calculateScore(historyItem, titleMatch || englishMatch, pinyinMatch)
           });
@@ -2824,71 +2417,12 @@ async function handleClearIconCache() {
   }
 }
 
-// 处理强制注入Content Script的请求
-async function handleForceInjectContentScript(sender) {
-  try {
-    const tabId = sender.tab?.id;
-    if (!tabId) {
-      return { success: false, error: 'Invalid tab ID' };
-    }
-
-    console.log('🔧 收到强制注入Content Script请求，tabId:', tabId);
-    
-    // 强制注入Content Script
-    await injectContentScript(tabId);
-    
-    return { success: true, message: 'Content script injection requested' };
-  } catch (error) {
-    console.error('Error in force inject content script:', error);
-    return { success: false, error: error.message };
-  }
-}
-
 // Initialize preload manager
 async function initializePreloadManager() {
   try {
     if (!preloadManager) {
-      // ServiceWorker doesn't support dynamic import(), so we'll use importScripts
-      // But first check if PreloadManager is available
-      if (typeof PreloadManager === 'undefined') {
-        // Try to load the script using importScripts (synchronous in ServiceWorker)
-        try {
-          importScripts(chrome.runtime.getURL('preload-manager.js'));
-        } catch (importError) {
-          console.warn('⚠️ Could not load preload-manager.js:', importError);
-          // Create a minimal fallback preload manager
-          window.PreloadManager = class {
-            constructor() {
-              this.isInitialized = false;
-            }
-            async initialize() {
-              this.isInitialized = true;
-            }
-            getProgress() {
-              return { loaded: 0, total: 0, percentage: 0 };
-            }
-            async triggerPreload() {
-              // No-op fallback
-            }
-            getIconUrl(url) {
-              return null;
-            }
-            isIconCached(url) {
-              return false;
-            }
-            async updateConfig(config) {
-              // No-op fallback
-            }
-            async clearIconCache() {
-              // No-op fallback
-            }
-            async loadIcon(item) {
-              // No-op fallback
-            }
-          };
-        }
-      }
-
+      // Import preload manager
+      await import(chrome.runtime.getURL('preload-manager.js'));
       preloadManager = new PreloadManager();
     }
 
@@ -2948,27 +2482,13 @@ chrome.bookmarks.onChanged.addListener(async (id, changeInfo) => {
   }
 });
 
-// Listen for history changes (if available) - 改进版本，支持实时数据同步
+// Listen for history changes (if available)
 if (chrome.history.onVisited) {
   chrome.history.onVisited.addListener(async (historyItem) => {
     console.log('📜 History item visited:', historyItem.url);
-
-    // 立即清理历史缓存，确保数据实时性
-    performanceCache.forceRefreshHistoryCache();
-
-    // 延迟重新加载历史数据，避免频繁API调用
-    setTimeout(async () => {
-      try {
-        await getRecentHistory(); // 重新加载历史数据
-        console.log('✅ History cache refreshed after new visit');
-      } catch (error) {
-        console.error('❌ Failed to refresh history cache:', error);
-      }
-    }, performanceCache.config.realtimeUpdateDelay);
-
-    // 预加载图标（保持原有功能）
     const manager = await initializePreloadManager();
     if (manager && historyItem.url) {
+      // Trigger incremental preload for new history item
       try {
         const url = new URL(historyItem.url);
         await manager.loadIcon({
@@ -2983,246 +2503,4 @@ if (chrome.history.onVisited) {
       }
     }
   });
-}
-
-// ===== 扩展重新加载修复相关的处理函数 =====
-
-// 处理强制注入Content Script的请求
-async function handleForceInjectContentScript(sender) {
-  try {
-    if (!sender.tab || !sender.tab.id) {
-      return { success: false, error: 'No valid tab information' };
-    }
-
-    const tabId = sender.tab.id;
-    console.log(`🔧 Force injecting content script to tab ${tabId}`);
-
-    await injectContentScriptSafely(tabId, true); // 使用重新注入模式
-
-    return {
-      success: true,
-      message: 'Content script force injection completed',
-      tabId: tabId
-    };
-  } catch (error) {
-    console.error('❌ Error in force inject content script:', error);
-    return {
-      success: false,
-      error: error.message,
-      suggestion: 'Try refreshing the page manually'
-    };
-  }
-}
-
-// 处理重新注入所有标签页的请求
-async function handleReinjectAllTabs() {
-  try {
-    console.log('🔄 Manual reinject all tabs requested');
-    await reinjectContentScriptsToAllTabs();
-
-    return {
-      success: true,
-      message: 'Successfully reinjected content scripts to all tabs'
-    };
-  } catch (error) {
-    console.error('❌ Error in reinject all tabs:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}
-
-// 检查当前标签页的content script状态
-async function handleCheckContentScriptStatus(sender) {
-  try {
-    if (!sender.tab || !sender.tab.id) {
-      return { success: false, error: 'No valid tab information' };
-    }
-
-    const tabId = sender.tab.id;
-    const tab = await chrome.tabs.get(tabId);
-
-    // 检查是否是特殊页面
-    if (isSpecialPage(tab.url)) {
-      return {
-        success: true,
-        status: 'special_page',
-        message: 'This is a special page where content scripts cannot be injected',
-        url: tab.url
-      };
-    }
-
-    // 尝试检查content script状态
-    try {
-      const result = await chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        func: () => {
-          return {
-            hasQuickFinderInstance: !!window.quickFinderInstance,
-            hasToggleFunction: !!(window.quickFinderInstance && typeof window.quickFinderInstance.toggle === 'function'),
-            hasQuickFinderClass: typeof QuickFinder !== 'undefined',
-            hasInitFunctions: !!(typeof window.initializeQuickFinder === 'function' && typeof window.ensureQuickFinderInitialization === 'function'),
-            url: window.location.href,
-            readyState: document.readyState
-          };
-        }
-      });
-
-      const status = result[0]?.result;
-
-      return {
-        success: true,
-        status: 'content_script_accessible',
-        details: status,
-        healthy: status?.hasQuickFinderInstance && status?.hasToggleFunction
-      };
-
-    } catch (scriptError) {
-      return {
-        success: true,
-        status: 'content_script_not_accessible',
-        error: scriptError.message,
-        suggestion: 'Content script may need to be reinjected'
-      };
-    }
-
-  } catch (error) {
-    console.error('❌ Error checking content script status:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}
-
-// 处理手动刷新数据缓存的请求
-async function handleRefreshDataCache(type = 'all') {
-  try {
-    console.log(`🔄 Manual data cache refresh requested: ${type}`);
-
-    const results = {};
-
-    if (type === 'all' || type === 'bookmarks') {
-      performanceCache.forceRefreshBookmarksCache();
-      try {
-        const bookmarks = await getAllBookmarks();
-        results.bookmarks = { success: true, count: bookmarks.length };
-        console.log('✅ Bookmarks cache refreshed manually');
-      } catch (error) {
-        results.bookmarks = { success: false, error: error.message };
-      }
-    }
-
-    if (type === 'all' || type === 'history') {
-      performanceCache.forceRefreshHistoryCache();
-      try {
-        const history = await getRecentHistory();
-        results.history = { success: true, count: history.length };
-        console.log('✅ History cache refreshed manually');
-      } catch (error) {
-        results.history = { success: false, error: error.message };
-      }
-    }
-
-    if (type === 'all' || type === 'search') {
-      performanceCache.clearSearchResultsCache();
-      results.searchCache = { success: true, message: 'Search cache cleared' };
-      console.log('✅ Search cache cleared manually');
-    }
-
-    return {
-      success: true,
-      message: `Data cache refresh completed for: ${type}`,
-      results: results,
-      timestamp: Date.now()
-    };
-
-  } catch (error) {
-    console.error('❌ Error refreshing data cache:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}
-
-// 检查数据新鲜度
-async function handleCheckDataFreshness() {
-  try {
-    const freshness = performanceCache.needsDataRefresh();
-    const stats = performanceCache.getStats();
-
-    return {
-      success: true,
-      freshness: freshness,
-      cacheStats: stats,
-      recommendations: {
-        shouldRefreshHistory: freshness.history,
-        shouldRefreshBookmarks: freshness.bookmarks,
-        shouldRefreshAny: freshness.any
-      },
-      timestamp: Date.now()
-    };
-
-  } catch (error) {
-    console.error('❌ Error checking data freshness:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-}
-
-// 强制刷新所有数据
-async function handleForceRefreshAllData() {
-  try {
-    console.log('🔄 Force refresh all data requested');
-
-    // 清理所有缓存
-    performanceCache.forceRefreshBookmarksCache();
-    performanceCache.forceRefreshHistoryCache();
-    performanceCache.clearSearchResultsCache();
-
-    // 重新加载所有数据
-    const results = await Promise.allSettled([
-      getAllBookmarks(),
-      getRecentHistory(),
-      getMostVisited()
-    ]);
-
-    const bookmarksResult = results[0];
-    const historyResult = results[1];
-    const mostVisitedResult = results[2];
-
-    return {
-      success: true,
-      message: 'All data forcefully refreshed',
-      results: {
-        bookmarks: {
-          success: bookmarksResult.status === 'fulfilled',
-          count: bookmarksResult.status === 'fulfilled' ? bookmarksResult.value.length : 0,
-          error: bookmarksResult.status === 'rejected' ? bookmarksResult.reason.message : null
-        },
-        history: {
-          success: historyResult.status === 'fulfilled',
-          count: historyResult.status === 'fulfilled' ? historyResult.value.length : 0,
-          error: historyResult.status === 'rejected' ? historyResult.reason.message : null
-        },
-        mostVisited: {
-          success: mostVisitedResult.status === 'fulfilled',
-          count: mostVisitedResult.status === 'fulfilled' ? mostVisitedResult.value.length : 0,
-          error: mostVisitedResult.status === 'rejected' ? mostVisitedResult.reason.message : null
-        }
-      },
-      timestamp: Date.now()
-    };
-
-  } catch (error) {
-    console.error('❌ Error force refreshing all data:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
 }

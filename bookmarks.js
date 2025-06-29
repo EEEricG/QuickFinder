@@ -2550,34 +2550,69 @@ class BookmarkManager {
       }
     });
 
-    // 拖拽放置
+    // 拖拽放置 - 修复版本，使用精确插入信息
     element.addEventListener('drop', (e) => {
       e.preventDefault();
       element.classList.remove('drag-over', 'drag-over-folder');
 
       if (this.draggedItem && this.draggedItem.id !== item.id) {
+        console.log('🎯 Drop事件触发，检查拖放类型');
+
         // 判断是拖拽到文件夹内部还是进行排序
         if (item.type === 'folder' && this.isDropIntoFolder(e, element)) {
+          console.log('📁 拖拽到文件夹内部');
           // 拖拽到文件夹中心区域，移动到文件夹内部
           this.handleDropIntoFolder(this.draggedItem, item);
         } else {
-          // 拖拽到边缘区域，进行排序
-          this.handleDrop(this.draggedItem, item);
+          console.log('🔄 拖拽进行排序');
+          // 检查是否有有效的插入信息
+          if (this.dragInsertInfo && this.dragInsertInfo.isValidDropZone) {
+            console.log('✅ 使用精确插入信息进行排序');
+            this.handleDrop(this.draggedItem, item);
+          } else {
+            console.log('❌ 无有效插入信息，拖放失败');
+            this.handleInvalidDrop(this.draggedItem, '拖放到无效区域');
+          }
         }
       }
+
+      // 清理插入线和插入信息
+      this.hideDragInsertLine();
     });
   }
 
-  // 处理拖拽放置（排序）
+  // 处理拖拽放置（排序）- 增强版本，包含失败检测和回滚机制
   async handleDrop(draggedItem, targetItem) {
+    // 保存原始位置信息，用于失败时回滚
+    const originalPosition = {
+      parentId: draggedItem.parentId,
+      index: draggedItem.index
+    };
+
     try {
       console.log('🎯 开始处理拖放操作');
       console.log('拖动项:', draggedItem.title, '(ID:', draggedItem.id, ')');
       console.log('目标项:', targetItem.title, '(ID:', targetItem.id, ')');
+      console.log('原始位置:', originalPosition);
+
+      // 验证拖放操作的有效性
+      if (!this.validateDropOperation(draggedItem, targetItem)) {
+        console.log('❌ 拖放操作无效，执行回滚');
+        await this.rollbackToOriginalPosition(draggedItem, originalPosition);
+        return;
+      }
 
       if (this.dragInsertInfo) {
         console.log('📍 使用精确插入模式');
         console.log('插入信息:', this.dragInsertInfo);
+
+        // 验证插入信息的有效性
+        if (!this.validateInsertInfo(this.dragInsertInfo)) {
+          console.log('❌ 插入信息无效，执行回滚');
+          await this.rollbackToOriginalPosition(draggedItem, originalPosition);
+          return;
+        }
+
         // 使用插入线信息进行精确插入
         await this.insertItemAtPosition(draggedItem, this.dragInsertInfo);
       } else {
@@ -2596,7 +2631,15 @@ class BookmarkManager {
 
     } catch (error) {
       console.error('❌ 拖拽操作失败:', error);
-      this.showNotification('移动失败: ' + error.message, 'error');
+      console.log('🔄 执行失败回滚');
+
+      try {
+        await this.rollbackToOriginalPosition(draggedItem, originalPosition);
+        this.showNotification('拖放失败，已恢复到原始位置', 'warning');
+      } catch (rollbackError) {
+        console.error('❌ 回滚失败:', rollbackError);
+        this.showNotification('拖放失败: ' + error.message, 'error');
+      }
     }
   }
 
@@ -2607,7 +2650,7 @@ class BookmarkManager {
     });
   }
 
-  // 精确插入项目到指定位置 - 修复从右到左拖动问题
+  // 精确插入项目到指定位置 - 完全修复索引计算逻辑
   async insertItemAtPosition(draggedItem, insertInfo) {
     const { targetItem, insertBefore } = insertInfo;
 
@@ -2620,31 +2663,81 @@ class BookmarkManager {
     let targetIndex = parseInt(targetItem.index) || 0;
     const draggedIndex = parseInt(draggedItem.index) || 0;
 
-    // 如果插入到后面，索引+1
-    if (!insertBefore) {
-      targetIndex += 1;
+    console.log('原始目标索引:', targetIndex);
+    console.log('拖动项索引:', draggedIndex);
+
+    // 计算最终插入位置
+    let finalIndex = targetIndex;
+
+    if (insertBefore) {
+      // 插入到目标项前面
+      finalIndex = targetIndex;
+      console.log('插入到前面，目标索引:', finalIndex);
+    } else {
+      // 插入到目标项后面
+      finalIndex = targetIndex + 1;
+      console.log('插入到后面，目标索引:', finalIndex);
     }
 
-    console.log('初始目标索引:', targetIndex);
-
-    // 关键修复：只有在同一父级内移动且需要调整时才减1
+    // 同一父级内移动时的索引调整 - 完全重写的正确逻辑
     if (draggedItem.parentId === targetItem.parentId) {
-      // 如果拖动项在目标位置前面，且最终位置会受到拖动项移除的影响
-      if (draggedIndex < targetIndex) {
-        targetIndex -= 1;
-        console.log('调整后索引:', targetIndex, '(拖动项在前面，索引-1)');
+      console.log('同一父级内移动，进行索引调整...');
+
+      // 重新思考：Chrome书签API的move操作会先移除项目，再插入到新位置
+      // 所以我们需要计算移除拖动项后的目标位置
+
+      if (insertBefore) {
+        // 插入到目标项前面
+        if (draggedIndex < targetIndex) {
+          // 拖动项在目标项前面：移除后目标项索引-1，插入位置是新的目标项索引
+          finalIndex = targetIndex - 1;
+          console.log('插入到前面，拖动项在前，调整后索引:', finalIndex);
+        } else {
+          // 拖动项在目标项后面：移除后目标项索引不变，插入位置就是目标项索引
+          finalIndex = targetIndex;
+          console.log('插入到前面，拖动项在后，索引为:', finalIndex);
+        }
+      } else {
+        // 插入到目标项后面
+        if (draggedIndex < targetIndex) {
+          // 拖动项在目标项前面：移除后目标项索引-1，插入到其后面就是目标项索引
+          finalIndex = targetIndex;
+          console.log('插入到后面，拖动项在前，最终索引:', finalIndex);
+        } else {
+          // 拖动项在目标项后面：移除后目标项索引不变，插入到其后面是索引+1
+          finalIndex = targetIndex + 1;
+          console.log('插入到后面，拖动项在后，最终索引:', finalIndex);
+        }
+      }
+
+      // 验证索引的合理性
+      if (finalIndex === draggedIndex) {
+        console.log('⚠️ 目标位置与原位置相同，跳过移动');
+        return;
+      }
+
+      // 确保索引不为负数
+      if (finalIndex < 0) {
+        finalIndex = 0;
+        console.log('⚠️ 索引调整为0，防止负数');
       }
     }
 
-    console.log('最终目标索引:', targetIndex);
+    console.log('最终目标索引:', finalIndex);
+
+    // 验证索引范围
+    if (finalIndex < 0) {
+      console.log('⚠️ 索引小于0，调整为0');
+      finalIndex = 0;
+    }
 
     // 移动拖拽项目到目标位置
     await chrome.bookmarks.move(draggedItem.id, {
       parentId: targetItem.parentId,
-      index: targetIndex
+      index: finalIndex
     });
 
-    console.log('✅ 移动完成');
+    console.log('✅ 移动完成，最终索引:', finalIndex);
   }
 
   // 重新排序项目（兼容旧逻辑）
@@ -2673,10 +2766,22 @@ class BookmarkManager {
     container.addEventListener('drop', (e) => {
       e.preventDefault();
 
-      // 如果拖拽到空白区域，移动到当前文件夹的末尾
+      // 如果拖拽到空白区域，检查是否有有效的插入信息
       if (this.draggedItem && !e.target.closest('.bookmark-item')) {
-        this.moveToEndOfFolder(this.draggedItem);
+        console.log('🎯 拖拽到容器空白区域');
+
+        // 如果没有有效的插入信息，说明是无效拖放
+        if (!this.dragInsertInfo || !this.dragInsertInfo.isValidDropZone) {
+          console.log('❌ 空白区域拖放无效，执行失败处理');
+          this.handleInvalidDrop(this.draggedItem, '拖放到无效区域');
+        } else {
+          console.log('✅ 移动到文件夹末尾');
+          this.moveToEndOfFolder(this.draggedItem);
+        }
       }
+
+      // 清理插入线和插入信息
+      this.hideDragInsertLine();
     });
   }
 
@@ -2708,23 +2813,58 @@ class BookmarkManager {
 
     const rect = targetElement.getBoundingClientRect();
     const mouseX = event.clientX;
-    const elementCenterX = rect.left + rect.width / 2;
+    const elementWidth = rect.width;
+    const elementLeft = rect.left;
+    const elementRight = rect.right;
 
-    // 判断插入位置：鼠标在元素左半部分插入到前面，右半部分插入到后面
-    const insertBefore = mouseX < elementCenterX;
+    // 定义更精确的拖放区域
+    const leftZoneWidth = Math.min(elementWidth * 0.3, 40); // 左侧区域：30%或最大40px
+    const rightZoneWidth = Math.min(elementWidth * 0.3, 40); // 右侧区域：30%或最大40px
+    const leftZoneEnd = elementLeft + leftZoneWidth;
+    const rightZoneStart = elementRight - rightZoneWidth;
 
-    console.log('🖱️ 鼠标位置调试:');
+    console.log('🖱️ 精确拖放区域检测:');
     console.log('鼠标X:', mouseX);
-    console.log('元素中心X:', elementCenterX);
-    console.log('元素范围:', rect.left, '-', rect.right);
-    console.log('插入位置:', insertBefore ? '前面' : '后面');
+    console.log('元素范围:', elementLeft, '-', elementRight, '(宽度:', elementWidth, ')');
+    console.log('左侧区域:', elementLeft, '-', leftZoneEnd);
+    console.log('右侧区域:', rightZoneStart, '-', elementRight);
+
+    let insertBefore = null;
+    let isValidDropZone = false;
+
+    // 判断鼠标位置
+    if (mouseX >= elementLeft && mouseX <= leftZoneEnd) {
+      // 在左侧区域 - 插入到前面
+      insertBefore = true;
+      isValidDropZone = true;
+      console.log('📍 位置：左侧区域 - 插入到前面');
+    } else if (mouseX >= rightZoneStart && mouseX <= elementRight) {
+      // 在右侧区域 - 插入到后面
+      insertBefore = false;
+      isValidDropZone = true;
+      console.log('📍 位置：右侧区域 - 插入到后面');
+    } else if (mouseX > leftZoneEnd && mouseX < rightZoneStart) {
+      // 在中间区域 - 无效拖放区域
+      isValidDropZone = false;
+      console.log('📍 位置：中间区域 - 无效拖放区域');
+    } else {
+      // 在元素外部 - 无效拖放区域
+      isValidDropZone = false;
+      console.log('📍 位置：元素外部 - 无效拖放区域');
+    }
+
+    if (!isValidDropZone) {
+      // 隐藏插入线，清除插入信息
+      this.hideDragInsertLine();
+      return;
+    }
 
     // 计算插入线位置
     let lineX;
     if (insertBefore) {
-      lineX = rect.left - 2; // 插入到目标元素左侧
+      lineX = elementLeft - 2; // 插入到目标元素左侧
     } else {
-      lineX = rect.right - 1; // 插入到目标元素右侧
+      lineX = elementRight - 1; // 插入到目标元素右侧
     }
 
     // 设置插入线样式和位置（垂直线）
@@ -2737,7 +2877,8 @@ class BookmarkManager {
     this.dragInsertInfo = {
       targetItem,
       insertBefore,
-      targetElement
+      targetElement,
+      isValidDropZone: true
     };
 
     console.log('💾 存储插入信息:', this.dragInsertInfo);
@@ -2749,6 +2890,138 @@ class BookmarkManager {
       this.dragInsertLine.classList.remove('visible');
     }
     this.dragInsertInfo = null;
+  }
+
+  // 验证拖放操作的有效性
+  validateDropOperation(draggedItem, targetItem) {
+    console.log('🔍 验证拖放操作有效性');
+
+    // 基本验证
+    if (!draggedItem || !targetItem) {
+      console.log('❌ 拖动项或目标项为空');
+      return false;
+    }
+
+    // 不能拖动到自己
+    if (draggedItem.id === targetItem.id) {
+      console.log('❌ 不能拖动到自己');
+      return false;
+    }
+
+    // 验证父级关系（防止将文件夹拖动到自己的子级）
+    if (draggedItem.type === 'folder' && this.isDescendantOf(targetItem, draggedItem)) {
+      console.log('❌ 不能将文件夹拖动到自己的子级');
+      return false;
+    }
+
+    console.log('✅ 基本拖放操作验证通过');
+    return true;
+  }
+
+  // 验证插入信息的有效性
+  validateInsertInfo(insertInfo) {
+    console.log('🔍 验证插入信息有效性');
+
+    if (!insertInfo) {
+      console.log('❌ 插入信息为空');
+      return false;
+    }
+
+    if (!insertInfo.hasOwnProperty('isValidDropZone') || !insertInfo.isValidDropZone) {
+      console.log('❌ 不在有效拖放区域');
+      return false;
+    }
+
+    if (!insertInfo.targetItem || insertInfo.insertBefore === null || insertInfo.insertBefore === undefined) {
+      console.log('❌ 插入信息不完整');
+      return false;
+    }
+
+    console.log('✅ 插入信息验证通过');
+    return true;
+  }
+
+  // 回滚到原始位置
+  async rollbackToOriginalPosition(draggedItem, originalPosition) {
+    console.log('🔄 执行位置回滚');
+    console.log('回滚到原始位置:', originalPosition);
+
+    try {
+      await chrome.bookmarks.move(draggedItem.id, {
+        parentId: originalPosition.parentId,
+        index: originalPosition.index
+      });
+
+      console.log('✅ 位置回滚成功');
+
+      // 重新加载和渲染
+      await this.loadBookmarks();
+      this.renderBookmarks();
+
+    } catch (error) {
+      console.error('❌ 位置回滚失败:', error);
+      throw error;
+    }
+  }
+
+  // 检查是否为后代关系
+  isDescendantOf(item, potentialAncestor) {
+    if (!item || !potentialAncestor) return false;
+
+    let current = item;
+    while (current && current.parentId) {
+      if (current.parentId === potentialAncestor.id) {
+        return true;
+      }
+      // 这里需要查找父级，简化处理
+      current = null; // 暂时简化，实际应该查找父级
+    }
+    return false;
+  }
+
+  // 处理无效拖放 - 提供视觉反馈和回滚
+  async handleInvalidDrop(draggedItem, reason) {
+    console.log('❌ 处理无效拖放:', reason);
+
+    try {
+      // 显示失败提示
+      this.showNotification(`失败：${reason}，${draggedItem.title} 返回原位`, 'warning');
+
+      // 添加视觉反馈效果
+      this.showInvalidDropFeedback(draggedItem);
+
+      // 不需要回滚，因为实际上没有移动
+      console.log('✅ 无效拖放处理完成');
+
+    } catch (error) {
+      console.error('❌ 无效拖放处理失败:', error);
+      this.showNotification('拖放操作失败', 'error');
+    }
+  }
+
+  // 显示无效拖放的视觉反馈
+  showInvalidDropFeedback(draggedItem) {
+    // 找到拖动项的DOM元素
+    const draggedElement = document.querySelector(`[data-id="${draggedItem.id}"]`);
+    if (draggedElement) {
+      // 添加失败动画效果
+      draggedElement.style.transition = 'all 0.3s ease';
+      draggedElement.style.transform = 'scale(1.05)';
+      draggedElement.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+      draggedElement.style.border = '2px solid #ef4444';
+
+      // 0.5秒后恢复正常
+      setTimeout(() => {
+        draggedElement.style.transform = '';
+        draggedElement.style.backgroundColor = '';
+        draggedElement.style.border = '';
+
+        // 再过0.3秒移除transition
+        setTimeout(() => {
+          draggedElement.style.transition = '';
+        }, 300);
+      }, 500);
+    }
   }
 
   // 显示拖拽目标区域

@@ -193,6 +193,9 @@ function showSearchMode() {
   if (introSection) {
     introSection.style.display = 'none';
   }
+
+  // Initialize search functionality when showing search mode
+  initializeSearch();
 }
 
 // Show intro mode

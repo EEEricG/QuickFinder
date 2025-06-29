@@ -20,6 +20,10 @@ class QuickFinder {
     this.currentTab = 'search'; // 当前标签页: 'search', 'ai-suggest', 'ai-organize'
     this.aiEnabled = false; // AI功能是否启用
 
+    // 拼音库加载状态
+    this.pinyinLibLoaded = false;
+    this.pinyinLibLoading = false;
+
     // Category data cache for efficient tag detection
     this.categoryCache = {
       bookmarks: new Set(),
@@ -117,158 +121,48 @@ class QuickFinder {
       console.error('Error saving settings:', error);
     }
   }
-
-  // 检查数据新鲜度并在需要时刷新
-  async checkAndRefreshDataIfNeeded() {
-    try {
-      console.log('🔍 Checking data freshness...');
-
-      const response = await chrome.runtime.sendMessage({ action: 'check-data-freshness' });
-
-      if (response.success) {
-        const { freshness, recommendations } = response;
-
-        if (recommendations.shouldRefreshAny) {
-          console.log('📊 Data needs refresh:', freshness);
-
-          // 如果数据不新鲜，触发刷新
-          if (recommendations.shouldRefreshHistory || recommendations.shouldRefreshBookmarks) {
-            console.log('🔄 Triggering data refresh...');
-
-            const refreshResponse = await chrome.runtime.sendMessage({
-              action: 'refresh-data-cache',
-              type: 'all'
-            });
-
-            if (refreshResponse.success) {
-              console.log('✅ Data refreshed successfully:', refreshResponse.results);
-            } else {
-              console.warn('⚠️ Data refresh failed:', refreshResponse.error);
-            }
-          }
-        } else {
-          console.log('✅ Data is fresh, no refresh needed');
-        }
-      } else {
-        console.warn('⚠️ Failed to check data freshness:', response.error);
-      }
-    } catch (error) {
-      console.error('❌ Error checking data freshness:', error);
-    }
-  }
-
-  // 手动刷新数据（用户触发）
-  async manualRefreshData(type = 'all') {
-    try {
-      console.log(`🔄 Manual data refresh requested: ${type}`);
-
-      const response = await chrome.runtime.sendMessage({
-        action: 'refresh-data-cache',
-        type: type
-      });
-
-      if (response.success) {
-        console.log('✅ Manual data refresh successful:', response.results);
-
-        // 如果当前显示的是相关数据，重新加载内容
-        if (this.isVisible) {
-          this.loadInitialContent();
-        }
-
-        return response;
-      } else {
-        console.error('❌ Manual data refresh failed:', response.error);
-        return response;
-      }
-    } catch (error) {
-      console.error('❌ Error during manual data refresh:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // 处理刷新按钮点击
-  async handleRefreshData() {
-    try {
-      console.log('🔄 User clicked refresh button');
-
-      // 显示刷新状态
-      const refreshButton = this.overlay.querySelector('.quickfinder-refresh-btn');
-      if (refreshButton) {
-        refreshButton.innerHTML = '⏳';
-        refreshButton.disabled = true;
-      }
-
-      // 执行刷新
-      const response = await this.manualRefreshData('all');
-
-      // 显示结果
-      if (response.success) {
-        console.log('✅ Data refresh completed successfully');
-        this.showRefreshNotification('数据已刷新', 'success');
-      } else {
-        console.error('❌ Data refresh failed:', response.error);
-        this.showRefreshNotification('刷新失败', 'error');
-      }
-
-    } catch (error) {
-      console.error('❌ Error handling refresh:', error);
-      this.showRefreshNotification('刷新出错', 'error');
-    } finally {
-      // 恢复按钮状态
-      const refreshButton = this.overlay.querySelector('.quickfinder-refresh-btn');
-      if (refreshButton) {
-        refreshButton.innerHTML = '🔄';
-        refreshButton.disabled = false;
-      }
-    }
-  }
-
-  // 显示刷新通知
-  showRefreshNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `quickfinder-notification ${type}`;
-    notification.textContent = message;
-
-    // 添加到搜索容器
-    const searchContainer = this.overlay.querySelector('.quickfinder-search-container');
-    if (searchContainer) {
-      searchContainer.appendChild(notification);
-
-      // 3秒后自动移除
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.parentNode.removeChild(notification);
-        }
-      }, 3000);
-    }
-  }
   
   init() {
+    // 加载拼音库
+    this.loadPinyinLibrary();
+
     // 初始化时清理任何可能存在的beforeunload监听器
     this.cleanupBeforeUnloadListeners();
 
-    // Listen for messages from background script for explicit toggling
+    // Listen for messages from background script
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      console.log('📨 Content script received message:', message);
       if (message.action === 'toggle-search') {
-        console.log('🎯 Toggling QuickFinder overlay via message.');
         this.toggle();
-        sendResponse({status: 'done'});
       }
     });
 
-    // The primary toggle mechanism is now handled by the background script
-    // calling `window.quickFinderInstance.toggle()` via `executeScript`.
-    // The listener above is a fallback.
+    // 统一使用Ctrl+Q快捷键（所有平台）
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'q') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.toggle();
+      }
+
+      // Additional focus shortcut: Ctrl+F or Cmd+F when overlay is visible
+      if (this.isVisible && (e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.focusSearchInput();
+      }
+
+      // Escape key to focus search input when overlay is visible
+      if (this.isVisible && e.key === 'Escape' && this.searchInput && this.searchInput.value === '') {
+        e.preventDefault();
+        this.focusSearchInput();
+      }
+    }, true);
   }
   
   toggle() {
-    console.log('🎯 QuickFinder toggle called, current state:', this.isVisible ? 'visible' : 'hidden');
     if (this.isVisible) {
-      console.log('🙈 Hiding QuickFinder overlay');
       this.hide();
     } else {
-      console.log('👁️ Showing QuickFinder overlay');
       this.show();
     }
   }
@@ -280,11 +174,6 @@ class QuickFinder {
     console.log('🔄 Reloading settings on show...');
     await this.loadSettings();
     this.settingsLoaded = true;
-
-    // 检查数据新鲜度，如果需要则刷新
-    this.checkAndRefreshDataIfNeeded().catch(error => {
-      console.warn('Failed to check data freshness:', error);
-    });
 
     // Update category cache for tag detection
     this.updateCategoryCache().catch(error => {
@@ -427,9 +316,8 @@ class QuickFinder {
   createTabs(container) {
     const tabs = [
       { id: 'search', label: '搜索', icon: '🔍', enabled: true },
-      // 暂时屏蔽AI相关功能
-      // { id: 'ai-suggest', label: 'AI建议', icon: '✨', enabled: this.aiEnabled },
-      // { id: 'ai-organize', label: '智能整理', icon: '📂', enabled: this.aiEnabled }
+      { id: 'ai-suggest', label: 'AI建议', icon: '✨', enabled: this.aiEnabled },
+      { id: 'ai-organize', label: '智能整理', icon: '📂', enabled: this.aiEnabled }
     ];
 
     tabs.forEach(tab => {
@@ -487,15 +375,6 @@ class QuickFinder {
       container.appendChild(button);
       console.log(`Button ${index}: ${mode} (${config.text})`);
     });
-
-    // 添加刷新按钮
-    const refreshButton = document.createElement('button');
-    refreshButton.innerHTML = '🔄';
-    refreshButton.className = 'quickfinder-refresh-btn';
-    refreshButton.title = '刷新数据';
-    refreshButton.onclick = () => this.handleRefreshData();
-
-    container.appendChild(refreshButton);
   }
 
   handleDragStart(e) {
@@ -2029,7 +1908,16 @@ class QuickFinder {
     }
   }
 
+  // 检测是否需要拼音搜索 - 暂时禁用拼音搜索以修复搜索问题
+  needsPinyinSearch(query) {
+    if (!query || !query.trim()) return false;
 
+    // 检测中文字符
+    const hasChinese = /[\u4e00-\u9fff]/.test(query);
+
+    // 只有纯中文查询才使用拼音搜索，英文查询一律使用普通搜索
+    return hasChinese;
+  }
 
   // 异步加载图标
   async loadIcon(url) {
@@ -2243,13 +2131,28 @@ class QuickFinder {
 
   async performRegularSearch(query) {
     try {
-      // 使用普通搜索（移除拼音搜索以避免CSP问题）
-      const [bookmarks, history] = await Promise.all([
-        chrome.runtime.sendMessage({ action: 'search-bookmarks', query }).catch(() => []),
-        chrome.runtime.sendMessage({ action: 'search-history', query }).catch(() => [])
-      ]);
+      // 检测是否需要拼音搜索
+      const needsPinyinSearch = this.needsPinyinSearch(query);
 
-      const allResults = [...(bookmarks || []), ...(history || [])];
+      let allResults = [];
+
+      if (needsPinyinSearch) {
+        // 使用拼音搜索
+        const pinyinResults = await chrome.runtime.sendMessage({
+          action: 'search-pinyin',
+          query
+        }).catch(() => []);
+
+        allResults = pinyinResults || [];
+      } else {
+        // 使用普通搜索
+        const [bookmarks, history] = await Promise.all([
+          chrome.runtime.sendMessage({ action: 'search-bookmarks', query }).catch(() => []),
+          chrome.runtime.sendMessage({ action: 'search-history', query }).catch(() => [])
+        ]);
+
+        allResults = [...(bookmarks || []), ...(history || [])];
+      }
 
       // Remove duplicates based on URL
       const uniqueResults = this.removeDuplicates(allResults);
@@ -2980,63 +2883,97 @@ class QuickFinder {
     
     console.log('✅ 全局事件屏蔽器已移除');
   }
+  // 加载拼音库 - CDN方式
+  async loadPinyinLibrary() {
+    if (this.pinyinLibLoaded || this.pinyinLibLoading) {
+      return;
+    }
 
+    this.pinyinLibLoading = true;
+    console.log('🔄 Loading pinyin library from CDN...');
+
+    try {
+      // 检查是否已经存在拼音库
+      if (typeof window.pinyin !== 'undefined') {
+        this.pinyinLibLoaded = true;
+        this.pinyinLibLoading = false;
+        console.log('✅ Pinyin library already loaded');
+        return;
+      }
+
+      // 创建script标签加载CDN版本
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/pinyin-pro@3.19.6/dist/index.js';
+      script.type = 'text/javascript';
+
+      // 设置加载超时
+      const timeout = setTimeout(() => {
+        console.warn('⚠️ Pinyin library CDN loading timeout, falling back to local functionality');
+        this.pinyinLibLoading = false;
+        if (script.parentNode) {
+          document.head.removeChild(script);
+        }
+      }, 10000); // 10秒超时
+
+      script.onload = () => {
+        clearTimeout(timeout);
+        this.pinyinLibLoaded = true;
+        this.pinyinLibLoading = false;
+        console.log('✅ Pinyin library loaded successfully from CDN');
+
+        // 验证库是否正确加载
+        if (typeof window.pinyin === 'function') {
+          console.log('🧪 Testing pinyin library:', window.pinyin('测试'));
+        }
+      };
+
+      script.onerror = () => {
+        clearTimeout(timeout);
+        this.pinyinLibLoading = false;
+        console.error('❌ Failed to load pinyin library from CDN, using fallback');
+        if (script.parentNode) {
+          document.head.removeChild(script);
+        }
+
+        // 降级处理：使用简单的拼音匹配
+        this.setupFallbackPinyin();
+      };
+
+      document.head.appendChild(script);
+
+    } catch (error) {
+      this.pinyinLibLoading = false;
+      console.error('❌ Error loading pinyin library:', error);
+      this.setupFallbackPinyin();
+    }
+  }
+
+  // 降级拼音处理
+  setupFallbackPinyin() {
+    console.log('🔧 Setting up fallback pinyin functionality');
+
+    // 简单的拼音映射表（常用字符）
+    window.pinyin = function(text) {
+      const pinyinMap = {
+        '中': 'zhong', '国': 'guo', '搜': 'sou', '索': 'suo',
+        '网': 'wang', '站': 'zhan', '书': 'shu', '签': 'qian',
+        '历': 'li', '史': 'shi', '记': 'ji', '录': 'lu',
+        '测': 'ce', '试': 'shi', '文': 'wen', '件': 'jian'
+      };
+
+      return text.split('').map(char => pinyinMap[char] || char).join(' ');
+    };
+
+    this.pinyinLibLoaded = true;
+    console.log('✅ Fallback pinyin functionality ready');
+  }
 }
 
 // Initialize QuickFinder when content script loads
-let quickFinderInstance = null;
-
-function initializeQuickFinder() {
-  // 防止重复初始化
-  if (quickFinderInstance && window.quickFinderInstance) {
-    console.log('🔄 QuickFinder already initialized, skipping...');
-    return quickFinderInstance;
-  }
-
-  try {
-    console.log('🚀 Initializing QuickFinder...');
-    console.log('📍 Document ready state:', document.readyState);
-    console.log('📍 Current URL:', window.location.href);
-
-    quickFinderInstance = new QuickFinder();
-    window.quickFinderInstance = quickFinderInstance; // 保存到全局变量
-
-    // 验证实例是否正确创建
-    if (typeof quickFinderInstance.toggle === 'function') {
-      console.log('✅ QuickFinder initialized successfully with toggle function');
-    } else {
-      console.error('❌ QuickFinder instance missing toggle function');
-    }
-
-    // 添加到全局作用域以便调试和重新创建
-    window.QuickFinder = QuickFinder;
-
-    return quickFinderInstance;
-  } catch (error) {
-    console.error('❌ Failed to initialize QuickFinder:', error);
-    console.error('Error details:', error.stack);
-    return null;
-  }
-}
-
-// 确保在多种情况下都能正确初始化
-function ensureInitialization() {
-  if (!quickFinderInstance || !window.quickFinderInstance) {
-    console.log('🔄 Ensuring QuickFinder initialization...');
-    return initializeQuickFinder();
-  }
-  return quickFinderInstance;
-}
-
-// 立即尝试初始化
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeQuickFinder);
-  // 也在页面完全加载后再次检查
-  window.addEventListener('load', ensureInitialization);
+  document.addEventListener('DOMContentLoaded', () => {
+    new QuickFinder();
+  });
 } else {
-  initializeQuickFinder();
+  new QuickFinder();
 }
-
-// 导出初始化函数供外部调用
-window.initializeQuickFinder = initializeQuickFinder;
-window.ensureQuickFinderInitialization = ensureInitialization;
