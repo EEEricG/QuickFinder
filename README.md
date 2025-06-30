@@ -10,7 +10,7 @@
 
 ## 🌟 核心亮点
 
-- 🚀 **一键快速搜索** - Windows（`Ctrl+Q`）、macOS（`⌘+K`） 快速调用
+- 🚀 **一键快速搜索** - `Ctrl+Q` (Windows/Linux) 或 `⌘+K` (macOS) 快速调用
 - 🔍 **统一搜索界面** - 同时搜索书签和历史记录
 - 🧠 **智能拼音搜索** - 支持中文拼音搜索和首字母匹配
 - 📂 **文件夹导航** - 支持书签文件夹浏览和面包屑导航
@@ -21,7 +21,9 @@
 ## 功能特点
 
 ### 🔍 核心搜索功能
-- **快速访问**：在所有平台（Windows（`Ctrl+Q`）、macOS（`⌘+K`））下，按快捷键即可打开搜索浮层
+- **快速访问**：
+  - Windows/Linux：按 `Ctrl+Q` 打开搜索浮层
+  - macOS：按 `⌘+K` 打开搜索浮层
 - **统一搜索**：在同一界面中搜索书签和浏览历史记录
 - **智能匹配**：支持模糊匹配、拼音搜索、首字母缩写等多种匹配方式
 - **毛玻璃界面**：拥有带有模糊背景效果的精美浮层
@@ -47,7 +49,19 @@
 
 ## 安装方法
 
-### 开发环境安装
+### 🚀 从GitHub Release安装（推荐）
+1. 访问 [GitHub Releases](https://github.com/EEEricG/QuickFinder/releases) 页面
+2. 下载最新版本的 `quickfinder-v*.*.*.zip` 压缩包
+3. 解压下载的zip文件到任意目录
+4. 打开Chrome或Edge浏览器，进入扩展程序页面：
+    - Chrome：`chrome://extensions/`
+    - Edge：`edge://extensions/`
+5. 启用 "开发者模式"（页面右上角的开关）
+6. 将下载的quickfinder.zip压缩包直接拖放到扩展管理页面即可加载
+7. 或者点击 "加载解压缩的扩展程序"，然后选择解压后的扩展程序目录
+8. 此时，扩展程序应已安装完毕并可使用
+
+### 🔧 开发环境安装
 1. 克隆或下载本存储库
 2. 打开Chrome或Edge浏览器，进入扩展程序页面：
     - Chrome：`chrome://extensions/`
@@ -146,7 +160,7 @@ A powerful browser extension for Chrome and Edge that provides quick access to b
 ## Features
 
 ### 🔍 Core Search Features
-- **Quick Access**: Press Windows（Ctrl+Q）、macOS（⌘+K）to open the search overlay
+- **Quick Access**: Press `Ctrl+Q` (unified shortcut for all platforms) to open the search overlay
 - **Unified Search**: Search through both bookmarks and browsing history in one interface
 - **Smart Matching**: Support for fuzzy matching, pinyin search, and abbreviation matching
 - **Frosted Glass UI**: Beautiful overlay with blur background effect
@@ -171,7 +185,19 @@ A powerful browser extension for Chrome and Edge that provides quick access to b
 
 ## Installation
 
-### Development Installation
+### 🚀 Install from GitHub Release (Recommended)
+
+1. Visit the [GitHub Releases](https://github.com/EEEricG/QuickFinder/releases) page
+2. Download the latest `quickfinder-v*.*.*.zip` package
+3. Extract the downloaded zip file to any directory
+4. Open Chrome or Edge and navigate to the extensions page:
+   - Chrome: `chrome://extensions/`
+   - Edge: `edge://extensions/`
+5. Enable "Developer mode" (toggle switch in the top right)
+6. Click "Load unpacked" and select the extracted extension directory
+7. The extension should now be installed and ready to use
+
+### 🔧 Development Installation
 
 1. Clone or download this repository
 2. Open Chrome or Edge and navigate to the extensions page:
@@ -184,7 +210,7 @@ A powerful browser extension for Chrome and Edge that provides quick access to b
 ## Usage
 
 ### Basic Search
-1. Press Windows（Ctrl+Q）、macOS（⌘+K） on any webpage
+1. Press `Ctrl+Q` (unified shortcut for all platforms) on any webpage
 2. Type to search through your bookmarks and history
 3. Use arrow keys to navigate results
 4. Press Enter to open the selected result
