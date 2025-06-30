@@ -4,6 +4,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-1.1.0-green.svg)](https://github.com/EEEricG/QuickFinder)
 
+
+
+https://github.com/user-attachments/assets/d2a141fd-8e5b-4077-a25d-f5629c5e6b1f
+
+
+
+
 一款功能强大的Chrome浏览器扩展，为用户提供快速便捷的书签和历史记录搜索体验。通过统一的搜索界面和智能匹配算法，让书签管理变得更加高效。
 
 ![QuickFinder Demo](icons/icon128.png)
